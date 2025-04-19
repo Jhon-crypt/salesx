@@ -10,11 +10,15 @@ import {
   IconButton,
   useTheme,
   Divider,
-  Stack
+  Stack,
+  CircularProgress,
+  Alert,
+  Collapse
 } from '@mui/material';
 import { Visibility, VisibilityOff, Restaurant as RestaurantIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
+import { loginUser } from '../utils/authUtils';
 
 const Login: React.FC = () => {
   const theme = useTheme();
@@ -25,6 +29,8 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const handleTogglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -35,13 +41,14 @@ const Login: React.FC = () => {
     return re.test(email);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let isValid = true;
 
     // Reset errors
     setEmailError('');
     setPasswordError('');
+    setLoginError('');
 
     // Validate email
     if (!email) {
@@ -62,14 +69,22 @@ const Login: React.FC = () => {
     }
 
     if (isValid) {
-      // In a real app, you would call an API here for authentication
-      console.log('Login with:', { email, password });
-      
-      // Call the login function from auth context
-      login();
-      
-      // Navigate to dashboard
-      navigate('/dashboard');
+      setIsLoading(true);
+      try {
+        // Call secure login function
+        await loginUser(email, password);
+        
+        // Update auth context
+        login();
+        
+        // Navigate to dashboard
+        navigate('/dashboard');
+      } catch (error) {
+        console.error('Login failed:', error);
+        setLoginError('Invalid email or password. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -140,6 +155,17 @@ const Login: React.FC = () => {
           </Typography>
         </Box>
 
+        {/* Show error if login fails */}
+        <Collapse in={!!loginError}>
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3 }}
+            onClose={() => setLoginError('')}
+          >
+            {loginError}
+          </Alert>
+        </Collapse>
+
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
             margin="normal"
@@ -196,6 +222,7 @@ const Login: React.FC = () => {
             fullWidth
             variant="contained"
             size="large"
+            disabled={isLoading}
             sx={{ 
               mb: 3, 
               py: 1.5,
@@ -203,7 +230,11 @@ const Login: React.FC = () => {
               background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
             }}
           >
-            Sign In
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Sign In'
+            )}
           </Button>
 
           <Divider sx={{ my: 2 }}>

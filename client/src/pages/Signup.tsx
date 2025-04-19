@@ -12,10 +12,14 @@ import {
   Divider,
   Stack,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  CircularProgress,
+  Alert,
+  Collapse
 } from '@mui/material';
 import { Visibility, VisibilityOff, Restaurant as RestaurantIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { registerUser } from '../utils/authUtils';
 
 const Signup: React.FC = () => {
   const theme = useTheme();
@@ -27,6 +31,8 @@ const Signup: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [signupError, setSignupError] = useState('');
   
   // Form validation errors
   const [nameError, setNameError] = useState('');
@@ -48,7 +54,7 @@ const Signup: React.FC = () => {
     return re.test(email);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let isValid = true;
 
@@ -58,6 +64,7 @@ const Signup: React.FC = () => {
     setPasswordError('');
     setConfirmPasswordError('');
     setTermsError('');
+    setSignupError('');
 
     // Validate name
     if (!name.trim()) {
@@ -96,11 +103,23 @@ const Signup: React.FC = () => {
     }
 
     if (isValid) {
-      // In a real app, you would call an API here for registration
-      console.log('Signup with:', { name, email, password });
-      
-      // For demo, just navigate to login
-      navigate('/login');
+      setIsLoading(true);
+      try {
+        // Call secure registration function
+        await registerUser(name, email, password);
+        
+        // Navigate to login page after successful registration
+        navigate('/login', { 
+          state: { 
+            message: 'Registration successful! Please log in with your new account.' 
+          } 
+        });
+      } catch (error) {
+        console.error('Registration failed:', error);
+        setSignupError('Registration failed. Please try again or use a different email.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -170,6 +189,17 @@ const Signup: React.FC = () => {
             Sign up to start managing your restaurant
           </Typography>
         </Box>
+
+        {/* Show error if signup fails */}
+        <Collapse in={!!signupError}>
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3 }}
+            onClose={() => setSignupError('')}
+          >
+            {signupError}
+          </Alert>
+        </Collapse>
 
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
@@ -295,6 +325,7 @@ const Signup: React.FC = () => {
             fullWidth
             variant="contained"
             size="large"
+            disabled={isLoading}
             sx={{ 
               mb: 3, 
               py: 1.5,
@@ -302,7 +333,11 @@ const Signup: React.FC = () => {
               background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
             }}
           >
-            Sign Up
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Sign Up'
+            )}
           </Button>
 
           <Divider sx={{ my: 2 }}>

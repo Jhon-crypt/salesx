@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './theme';
@@ -6,36 +6,29 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import { isAuthenticated, logoutUser, getUserData } from './utils/authUtils';
 
-// Simple authentication context simulation
-const AuthContext = React.createContext<{
+// Authentication context with improved security
+interface AuthContextType {
   isAuthenticated: boolean;
+  userData: any | null;
   login: () => void;
   logout: () => void;
-}>({
+}
+
+const AuthContext = React.createContext<AuthContextType>({
   isAuthenticated: false,
+  userData: null,
   login: () => {},
   logout: () => {},
 });
 
-// Protected route wrapper
+// Protected route wrapper with secure authentication check
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // For demo purposes, we'll consider users authenticated if they've visited the login page
-  // In a real app, you would check for tokens and validate authentication status
-  const [hasVisitedLogin, setHasVisitedLogin] = useState(
-    localStorage.getItem('hasVisitedLogin') === 'true'
-  );
   const location = useLocation();
+  const authenticated = isAuthenticated();
 
-  // When a user visits login, set the flag
-  React.useEffect(() => {
-    if (location.pathname === '/login') {
-      localStorage.setItem('hasVisitedLogin', 'true');
-      setHasVisitedLogin(true);
-    }
-  }, [location]);
-
-  if (!hasVisitedLogin) {
+  if (!authenticated) {
     // Redirect to login if not authenticated
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
@@ -44,19 +37,48 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authState, setAuthState] = useState({
+    isAuthenticated: isAuthenticated(),
+    userData: getUserData()
+  });
+
+  // Check authentication status on app load
+  useEffect(() => {
+    const checkAuth = () => {
+      setAuthState({
+        isAuthenticated: isAuthenticated(),
+        userData: getUserData()
+      });
+    };
+
+    // Check immediately
+    checkAuth();
+
+    // Set up interval to regularly check token expiration
+    const interval = setInterval(checkAuth, 60000); // Check every minute
+    
+    // Clean up interval on unmount
+    return () => clearInterval(interval);
+  }, []);
 
   const login = () => {
-    setIsAuthenticated(true);
+    setAuthState({
+      isAuthenticated: true,
+      userData: getUserData()
+    });
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('hasVisitedLogin');
+    logoutUser();
+    setAuthState({
+      isAuthenticated: false,
+      userData: null
+    });
   };
 
   const authContextValue = {
-    isAuthenticated,
+    isAuthenticated: authState.isAuthenticated,
+    userData: authState.userData,
     login,
     logout,
   };
