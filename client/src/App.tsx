@@ -16,33 +16,69 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'failed'>('connecting');
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [errorDetails, setErrorDetails] = useState<string>('');
+  const [retryCount, setRetryCount] = useState<number>(0);
   
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  // Use relative URL instead of absolute URL to leverage the Vite proxy
+  const API_BASE = '/api';
+
+  const testConnection = async () => {
+    try {
+      console.log(`Attempting to connect to ${API_BASE}/test...`);
+      const response = await axios.get(`${API_BASE}/test`);
+      setMessage(response.data.message);
+      setConnectionStatus('connected');
+      setErrorDetails('');
+      
+      // If connected successfully, also get data
+      try {
+        const dataResponse = await axios.get<ApiResponse>(`${API_BASE}/data`);
+        setItems(dataResponse.data.items);
+      } catch (dataError) {
+        console.error('Error fetching data:', dataError);
+      } finally {
+        setLoading(false);
+      }
+    } catch (error: any) {
+      console.error('Error connecting to API:', error);
+      setConnectionStatus('failed');
+      
+      // Extract and display detailed error information
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setErrorDetails(`Server responded with error ${error.response.status}: ${error.response.data?.message || 'Unknown error'}`);
+      } else if (error.request) {
+        // The request was made but no response was received
+        setErrorDetails('No response received from server. Server might be down or unreachable.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setErrorDetails(`Error: ${error.message}`);
+      }
+      
+      setLoading(false);
+    }
+  };
+
+  // Retry connection when the retry button is clicked
+  const handleRetry = () => {
+    setConnectionStatus('connecting');
+    setLoading(true);
+    setRetryCount(prev => prev + 1);
+  };
 
   useEffect(() => {
-    // Test basic API connection
-    axios.get(`${API_URL}/api/test`)
-      .then(response => {
-        setMessage(response.data.message);
-        setConnectionStatus('connected');
-      })
-      .catch(error => {
-        console.error('Error fetching test data:', error);
-        setMessage('Error connecting to API');
-        setConnectionStatus('failed');
-      });
+    testConnection();
     
-    // Fetch items from API
-    axios.get<ApiResponse>(`${API_URL}/api/data`)
-      .then(response => {
-        setItems(response.data.items);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching items:', error);
-        setLoading(false);
-      });
-  }, [API_URL]);
+    // Setup an interval to keep checking connection
+    const intervalId = setInterval(() => {
+      if (connectionStatus === 'failed') {
+        testConnection();
+      }
+    }, 5000); // Check every 5 seconds if failed
+    
+    return () => clearInterval(intervalId);
+  }, [API_BASE, retryCount]);
 
   return (
     <div className="container">
@@ -59,7 +95,24 @@ function App() {
           </span>
         </div>
         {connectionStatus === 'connected' && <p className="api-message">Server says: "{message}"</p>}
-        {connectionStatus === 'failed' && <p className="api-url">Trying to connect to: {API_URL}</p>}
+        {connectionStatus === 'failed' && (
+          <>
+            <p className="api-url">Trying to connect to: {window.location.origin}{API_BASE}</p>
+            {errorDetails && <p className="error-details">{errorDetails}</p>}
+            <button className="retry-button" onClick={handleRetry}>
+              Retry Connection
+            </button>
+            <div className="troubleshooting">
+              <h3>Troubleshooting:</h3>
+              <ul>
+                <li>Make sure the Express server is running (npm run server)</li>
+                <li>Check if the server is running on port 5000</li>
+                <li>Verify CORS is enabled on the server</li>
+                <li>Check for firewall or network issues</li>
+              </ul>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="card">

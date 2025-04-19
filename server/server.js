@@ -12,14 +12,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Simplified CORS configuration - allow all origins for development
 app.use(cors());
+
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Simple logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+// Basic health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).send('Server is up and running');
+});
 
 // API Routes
 app.use('/api', apiRoutes);
 app.get('/api/test', (req, res) => {
+  console.log('Test endpoint hit');
   res.json({ message: 'API is working!' });
 });
 
@@ -33,6 +47,22 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ 
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// Start the server on localhost
+app.listen(PORT, 'localhost', (err) => {
+  if (err) {
+    console.error('Error starting server:', err);
+    return;
+  }
   console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`API available at http://localhost:${PORT}/api/test`);
 }); 

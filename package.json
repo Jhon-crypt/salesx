@@ -7,6 +7,7 @@
     "server": "nodemon server/server.js",
     "client": "cd client && npm run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "restart": "pkill -f 'node.*server/server.js' || true && pkill -f 'node.*vite' || true && npm run dev",
     "install-client": "cd client && npm install",
     "build": "cd client && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
