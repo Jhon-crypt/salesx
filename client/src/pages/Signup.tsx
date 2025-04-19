@@ -113,6 +113,11 @@ const Signup: React.FC = () => {
         justifyContent: 'center',
         padding: 3,
         background: `linear-gradient(135deg, ${theme.palette.primary.light}22 0%, ${theme.palette.secondary.light}22 100%)`,
+        width: '100%',
+        height: '100%',
+        position: 'fixed',
+        top: 0,
+        left: 0
       }}
     >
       <Paper 
@@ -123,7 +128,8 @@ const Signup: React.FC = () => {
           maxWidth: 500, 
           borderRadius: 2,
           boxShadow: '0 8px 40px rgba(0,0,0,0.12)',
-          mx: 'auto'
+          margin: '0 auto',
+          position: 'relative'
         }}
       >
         <Box sx={{ textAlign: 'center', mb: 3 }}>
