@@ -1,43 +1,65 @@
-# Express + React Vite Application
+## SalesX
 
-A full-stack application with Express backend and React Vite frontend that run concurrently.
+A modern sales and analytics dashboard for businesses.
 
-## Setup
+### Features
 
-1. Install server dependencies:
-   ```
-   npm install
-   ```
+- Real-time data visualization
+- Sales analytics
+- Customer insights
+- Inventory management
+- Employee performance tracking
 
-2. Install client dependencies:
-   ```
-   npm run install-client
-   ```
+### Database Integration
 
-## Running the Application
+The application includes integration with a SQL Server database for KFC Insight replica data. The following endpoints are available:
 
-To run both the server and client concurrently:
+- `/api/db/test` - Test database connection
+- `/api/db/tables` - List all available tables in the database
+- `/api/db/columns/:tableName` - Get column information for a specific table
+- `/api/db/sample-data/:tableName` - Get sample data from a specific table (top 10 rows)
+- `/api/db/simple-sales` - Get basic sales data without table joins
+- `/api/db/store-sales` - Get detailed store sales data with store information
+- `/api/db/item-sales` - Get item-level sales data
+- `/api/db/transaction-items` - Get transaction item details
+- `/api/db/void-transactions` - Get void transaction data
+
+### Technologies Used
+
+- **Frontend**: React.js, Material-UI, Recharts
+- **Backend**: Node.js, Express
+- **Database**: SQL Server
+- **Authentication**: JWT
+
+### Getting Started
+
+#### Prerequisites
+
+- Node.js 14+ installed
+- npm or yarn
+
+#### Installation
+
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd salesx
 ```
+
+2. Install dependencies
+```bash
+npm install
+```
+
+3. Start the development server
+```bash
 npm run dev
 ```
 
-This will start:
-- Express server on http://localhost:5000
-- React Vite frontend on http://localhost:5173
+This will start both the frontend and backend development servers.
 
-## Available Scripts
+### Project Structure
 
-- `npm run dev` - Run both server and client in development mode
-- `npm run server` - Run only the Express server with nodemon
-- `npm run client` - Run only the React Vite client
-- `npm start` - Run the Express server in production mode
-- `npm run build` - Build the React client for production
-- `npm run install-client` - Install client dependencies
-
-## Project Structure
-
-- `/server` - Express server code
-  - `/server/routes` - API routes
-  - `/server/server.js` - Main server file
-- `/client` - React Vite frontend
-  - Standard Vite + React structure 
+- `/client` - Frontend React application
+- `/server` - Backend Express API
+- `/docs` - Documentation and guides 

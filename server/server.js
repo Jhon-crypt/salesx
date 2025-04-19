@@ -5,6 +5,7 @@ const path = require('path');
 
 // Import routes
 const apiRoutes = require('./routes/api');
+const dbRoutes = require('./routes/db');
 
 // Load environment variables
 dotenv.config();
@@ -37,6 +38,9 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'API is working!' });
 });
 
+// Database Routes
+app.use('/api/db', dbRoutes);
+
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
   // Set static folder
@@ -65,4 +69,5 @@ app.listen(PORT, 'localhost', (err) => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   console.log(`API available at http://localhost:${PORT}/api/test`);
+  console.log(`Database test endpoint available at http://localhost:${PORT}/api/db/test`);
 }); 
