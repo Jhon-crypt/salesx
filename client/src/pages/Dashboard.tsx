@@ -214,8 +214,8 @@ const Dashboard: React.FC = () => {
       </Paper>
 
       {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid component="div" item xs={12} sm={6} md={3}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Today's Sales"
             value={2897.50}
@@ -225,8 +225,8 @@ const Dashboard: React.FC = () => {
             icon={<ReceiptIcon />}
             color="primary"
           />
-        </Grid>
-        <Grid component="div" item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Active Orders"
             value={37}
@@ -235,8 +235,8 @@ const Dashboard: React.FC = () => {
             icon={<ShoppingCartIcon />}
             color="secondary"
           />
-        </Grid>
-        <Grid component="div" item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Customers"
             value={158}
@@ -245,8 +245,8 @@ const Dashboard: React.FC = () => {
             icon={<GroupIcon />}
             color="success"
           />
-        </Grid>
-        <Grid component="div" item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Menu Items"
             value={84}
@@ -254,18 +254,16 @@ const Dashboard: React.FC = () => {
             icon={<StoreIcon />}
             color="warning"
           />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* Sales Chart */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12}>
-          <SalesChart
-            title="Sales Overview"
-            subtitle="Track your restaurant's sales performance over time"
-          />
-        </Grid>
-      </Grid>
+      <Box sx={{ mb: 3 }}>
+        <SalesChart
+          title="Sales Overview"
+          subtitle="Track your restaurant's sales performance over time"
+        />
+      </Box>
 
       {/* Revenue Breakdown */}
       <Box sx={{ mb: 3 }}>
@@ -277,24 +275,24 @@ const Dashboard: React.FC = () => {
       </Box>
 
       {/* Orders and Popular Items */}
-      <Grid container spacing={3}>
-        <Grid component="div" item xs={12} lg={7}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
+        <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
           <RecentOrders
             title="Recent Orders"
             subtitle="Latest orders from your customers"
             orders={recentOrders}
             onViewAll={() => console.log('View all orders')}
           />
-        </Grid>
-        <Grid component="div" item xs={12} lg={5}>
+        </Box>
+        <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
           <PopularItems
             title="Popular Items"
             subtitle="Best-selling items in your menu"
             items={popularItems}
             onViewAll={() => console.log('View all menu items')}
           />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </Box>
   );
 };
