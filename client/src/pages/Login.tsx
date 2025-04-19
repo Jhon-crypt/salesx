@@ -92,13 +92,15 @@ const Login: React.FC = () => {
       <Paper 
         elevation={3} 
         sx={{ 
-          p: 4, 
+          p: { xs: 3, sm: 4 }, 
           width: '100%', 
           maxWidth: 450, 
           borderRadius: 2,
           boxShadow: '0 8px 40px rgba(0,0,0,0.12)',
           margin: '0 auto',
-          position: 'relative'
+          position: 'relative',
+          maxHeight: '85vh',
+          overflowY: 'auto'
         }}
       >
         <Box sx={{ textAlign: 'center', mb: 3 }}>
