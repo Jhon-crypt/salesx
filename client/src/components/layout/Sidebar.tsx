@@ -44,6 +44,17 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
   },
 }));
 
+const LogoText = styled(Typography)(({ theme }) => ({
+  fontWeight: 800,
+  fontSize: '1.5rem',
+  background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  letterSpacing: '-0.02em',
+  marginLeft: theme.spacing(1),
+  fontFamily: "'Poppins', sans-serif",
+}));
+
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
@@ -178,9 +189,21 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = "permanent" 
           color: theme.palette.primary.contrastText,
         }}
       >
-        <Typography variant="h6" fontWeight="bold">
-          RestaurantX
-        </Typography>
+        <Box 
+          sx={{ 
+            bgcolor: 'white', 
+            borderRadius: '8px', 
+            p: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <RestaurantIcon sx={{ color: theme.palette.primary.main }} />
+        </Box>
+        <LogoText sx={{ color: 'white' }}>
+          SalesX
+        </LogoText>
         {isSmallScreen && (
           <IconButton
             onClick={onClose}

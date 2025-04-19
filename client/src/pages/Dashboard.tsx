@@ -1,11 +1,12 @@
 import React from 'react';
-import { Grid, Typography, Box, Breadcrumbs, Link, useTheme } from '@mui/material';
+import { Grid, Typography, Box, Breadcrumbs, Link, useTheme, Paper, Stack } from '@mui/material';
 import { format } from 'date-fns';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import StoreIcon from '@mui/icons-material/Store';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import GroupIcon from '@mui/icons-material/Group';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 
 // Components
 import StatsCard from '../components/dashboard/StatsCard';
@@ -112,30 +113,70 @@ const Dashboard: React.FC = () => {
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* Page Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h4" fontWeight="bold">
-            Dashboard
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
+      <Paper 
+        elevation={0}
+        sx={{ 
+          mb: 3, 
+          p: 3, 
+          borderRadius: 2,
+          background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
+          border: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h4" fontWeight="bold" sx={{ 
+                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                letterSpacing: '-0.02em',
+              }}>
+                SalesX Dashboard
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                All your restaurant metrics in one place
+              </Typography>
+            </Box>
+            <Box sx={{ 
+              py: 0.5, 
+              px: 2, 
+              borderRadius: 2, 
+              backgroundColor: '#10b98120', 
+              display: 'flex', 
+              alignItems: 'center'
+            }}>
+              <ArrowUpwardIcon sx={{ color: theme.palette.success.main, fontSize: 16, mr: 1 }} />
+              <Typography 
+                variant="body2" 
+                color={theme.palette.success.main}
+                fontWeight="medium"
+              >
+                Sales Up 24% from last week
+              </Typography>
+            </Box>
+          </Box>
+          
+          <Breadcrumbs aria-label="breadcrumb">
+            <Link
+              underline="hover"
+              color="inherit"
+              href="/"
+              sx={{ display: 'flex', alignItems: 'center' }}
+            >
+              <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Home
+            </Link>
+            <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+              Dashboard
+            </Typography>
+          </Breadcrumbs>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {today}
           </Typography>
-        </Box>
-        <Breadcrumbs aria-label="breadcrumb">
-          <Link
-            underline="hover"
-            color="inherit"
-            href="/"
-            sx={{ display: 'flex', alignItems: 'center' }}
-          >
-            <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Home
-          </Link>
-          <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-            Dashboard
-          </Typography>
-        </Breadcrumbs>
-      </Box>
+        </Stack>
+      </Paper>
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>

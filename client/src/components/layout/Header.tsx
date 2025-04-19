@@ -20,6 +20,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SearchIcon from '@mui/icons-material/Search';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
 import InputBase from '@mui/material/InputBase';
 import { styled, alpha } from '@mui/material/styles';
 
@@ -64,6 +65,23 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
       width: '20ch',
     },
   },
+}));
+
+const LogoContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  marginRight: theme.spacing(2),
+}));
+
+const LogoText = styled(Typography)(({ theme }) => ({
+  fontWeight: 800,
+  fontSize: '1.5rem',
+  background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  letterSpacing: '-0.02em',
+  marginLeft: theme.spacing(1),
+  fontFamily: "'Poppins', sans-serif",
 }));
 
 interface HeaderProps {
@@ -118,15 +136,25 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
           <MenuIcon />
         </IconButton>
         
-        {/* Logo for mobile */}
-        <Typography
-          variant="h6"
-          noWrap
-          component="div"
-          sx={{ display: { xs: 'block', md: 'none' }, fontWeight: 'bold' }}
-        >
-          RestaurantX
-        </Typography>
+        {/* Logo */}
+        <LogoContainer>
+          <Box 
+            sx={{ 
+              bgcolor: theme.palette.primary.main, 
+              borderRadius: '8px', 
+              p: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}
+          >
+            <RestaurantIcon />
+          </Box>
+          <LogoText>
+            SalesX
+          </LogoText>
+        </LogoContainer>
         
         {/* Search Bar */}
         <Search>
