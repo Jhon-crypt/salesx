@@ -13,6 +13,7 @@ import StatsCard from '../components/dashboard/StatsCard';
 import SalesChart from '../components/dashboard/SalesChart';
 import RecentOrders from '../components/dashboard/RecentOrders';
 import PopularItems from '../components/dashboard/PopularItems';
+import RevenueBreakdown from '../components/dashboard/RevenueBreakdown';
 
 // Sample Data
 const recentOrders = [
@@ -106,6 +107,40 @@ const popularItems = [
   },
 ];
 
+// Revenue breakdown data
+const revenueCategories = [
+  {
+    name: 'Main Course',
+    value: 1423.50,
+    color: '#3f51b5',
+    percentage: 48,
+  },
+  {
+    name: 'Appetizers',
+    value: 567.25,
+    color: '#2196f3',
+    percentage: 19,
+  },
+  {
+    name: 'Desserts',
+    value: 389.75,
+    color: '#00bcd4',
+    percentage: 13,
+  },
+  {
+    name: 'Beverages',
+    value: 324.50,
+    color: '#4caf50',
+    percentage: 11,
+  },
+  {
+    name: 'Alcohol',
+    value: 273.50,
+    color: '#ff9800',
+    percentage: 9,
+  },
+];
+
 const Dashboard: React.FC = () => {
   const theme = useTheme();
   const today = format(new Date(), 'EEEE, MMMM d, yyyy');
@@ -180,7 +215,7 @@ const Dashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid component="div" item xs={12} sm={6} md={3}>
           <StatsCard
             title="Today's Sales"
             value={2897.50}
@@ -191,7 +226,7 @@ const Dashboard: React.FC = () => {
             color="primary"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid component="div" item xs={12} sm={6} md={3}>
           <StatsCard
             title="Active Orders"
             value={37}
@@ -201,7 +236,7 @@ const Dashboard: React.FC = () => {
             color="secondary"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid component="div" item xs={12} sm={6} md={3}>
           <StatsCard
             title="Customers"
             value={158}
@@ -211,7 +246,7 @@ const Dashboard: React.FC = () => {
             color="success"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid component="div" item xs={12} sm={6} md={3}>
           <StatsCard
             title="Menu Items"
             value={84}
@@ -232,9 +267,18 @@ const Dashboard: React.FC = () => {
         </Grid>
       </Grid>
 
+      {/* Revenue Breakdown */}
+      <Box sx={{ mb: 3 }}>
+        <RevenueBreakdown
+          title="Revenue Breakdown"
+          subtitle="Sales distribution by food category"
+          data={revenueCategories}
+        />
+      </Box>
+
       {/* Orders and Popular Items */}
       <Grid container spacing={3}>
-        <Grid item xs={12} lg={7}>
+        <Grid component="div" item xs={12} lg={7}>
           <RecentOrders
             title="Recent Orders"
             subtitle="Latest orders from your customers"
@@ -242,7 +286,7 @@ const Dashboard: React.FC = () => {
             onViewAll={() => console.log('View all orders')}
           />
         </Grid>
-        <Grid item xs={12} lg={5}>
+        <Grid component="div" item xs={12} lg={5}>
           <PopularItems
             title="Popular Items"
             subtitle="Best-selling items in your menu"
