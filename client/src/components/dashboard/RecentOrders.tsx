@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -13,29 +13,21 @@ import {
   Chip, 
   Avatar,
   Button,
-  useTheme 
+  useTheme,
+  CircularProgress 
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
+import apiService from '../../services/apiService';
+import { RecentOrderData, transformRecentOrders } from '../../utils/dataTransformers';
 
-interface Order {
-  id: string;
-  customer: {
-    name: string;
-    avatar?: string;
-    initial?: string;
-  };
-  items: number;
-  total: number;
-  status: 'completed' | 'in_progress' | 'pending' | 'cancelled';
-  date: string;
-  tableNumber?: number;
-}
+// Type declaration for Order
+type Order = RecentOrderData;
 
 interface RecentOrdersProps {
   title: string;
   subtitle?: string;
-  orders: Order[];
+  orders?: Order[]; // Make optional to allow both static and fetched data
   onViewAll?: () => void;
 }
 
@@ -61,10 +53,43 @@ const StyledTableHeadCell = styled(TableCell)(({ theme }) => ({
 const RecentOrders: React.FC<RecentOrdersProps> = ({
   title,
   subtitle,
-  orders,
+  orders: propOrders,
   onViewAll,
 }) => {
   const theme = useTheme();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // If orders are provided via props, use those (for backward compatibility)
+    if (propOrders && propOrders.length > 0) {
+      setOrders(propOrders);
+      return;
+    }
+
+    // Otherwise fetch from API
+    const fetchOrders = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const transactionItems = await apiService.getTransactionItems();
+        if (transactionItems && transactionItems.length > 0) {
+          const transformedOrders = transformRecentOrders(transactionItems);
+          setOrders(transformedOrders);
+        } else {
+          setError('No order data available');
+        }
+      } catch (err) {
+        console.error('Error fetching orders:', err);
+        setError('Could not load order data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [propOrders]);
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
@@ -109,6 +134,11 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
                 {subtitle}
               </Typography>
             )}
+            {error && (
+              <Typography variant="caption" color="error">
+                {error}
+              </Typography>
+            )}
           </Box>
           {onViewAll && (
             <Button
@@ -121,83 +151,93 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
           )}
         </Box>
 
-        <TableContainer sx={{ flexGrow: 1 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <StyledTableHeadCell>Order ID</StyledTableHeadCell>
-                <StyledTableHeadCell>Customer</StyledTableHeadCell>
-                {orders.some(order => order.tableNumber !== undefined) && (
-                  <StyledTableHeadCell>Table</StyledTableHeadCell>
-                )}
-                <StyledTableHeadCell>Items</StyledTableHeadCell>
-                <StyledTableHeadCell>Total</StyledTableHeadCell>
-                <StyledTableHeadCell>Status</StyledTableHeadCell>
-                <StyledTableHeadCell>Date</StyledTableHeadCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id} hover>
-                  <StyledTableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      #{order.id}
-                    </Typography>
-                  </StyledTableCell>
-                  <StyledTableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Avatar
-                        src={order.customer.avatar}
-                        sx={{ width: 28, height: 28, marginRight: 1 }}
-                      >
-                        {order.customer.initial}
-                      </Avatar>
-                      <Typography variant="body2">
-                        {order.customer.name}
-                      </Typography>
-                    </Box>
-                  </StyledTableCell>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress color="secondary" />
+          </Box>
+        ) : orders.length > 0 ? (
+          <TableContainer sx={{ flexGrow: 1 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <StyledTableHeadCell>Order ID</StyledTableHeadCell>
+                  <StyledTableHeadCell>Customer</StyledTableHeadCell>
                   {orders.some(order => order.tableNumber !== undefined) && (
-                    <StyledTableCell>
-                      {order.tableNumber ? (
-                        <Typography variant="body2">
-                          Table {order.tableNumber}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
-                      )}
-                    </StyledTableCell>
+                    <StyledTableHeadCell>Table</StyledTableHeadCell>
                   )}
-                  <StyledTableCell>
-                    <Typography variant="body2">
-                      {order.items}
-                    </Typography>
-                  </StyledTableCell>
-                  <StyledTableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      ${order.total.toFixed(2)}
-                    </Typography>
-                  </StyledTableCell>
-                  <StyledTableCell>
-                    <Chip
-                      label={getStatusText(order.status)}
-                      color={getStatusColor(order.status)}
-                      size="small"
-                      sx={{ fontWeight: 500, minWidth: 90 }}
-                    />
-                  </StyledTableCell>
-                  <StyledTableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {order.date}
-                    </Typography>
-                  </StyledTableCell>
+                  <StyledTableHeadCell>Items</StyledTableHeadCell>
+                  <StyledTableHeadCell>Total</StyledTableHeadCell>
+                  <StyledTableHeadCell>Status</StyledTableHeadCell>
+                  <StyledTableHeadCell>Date</StyledTableHeadCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id} hover>
+                    <StyledTableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        #{order.id}
+                      </Typography>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Avatar
+                          src={order.customer.avatar}
+                          sx={{ width: 28, height: 28, marginRight: 1 }}
+                        >
+                          {order.customer.initial}
+                        </Avatar>
+                        <Typography variant="body2">
+                          {order.customer.name}
+                        </Typography>
+                      </Box>
+                    </StyledTableCell>
+                    {orders.some(order => order.tableNumber !== undefined) && (
+                      <StyledTableCell>
+                        {order.tableNumber ? (
+                          <Typography variant="body2">
+                            Table {order.tableNumber}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </StyledTableCell>
+                    )}
+                    <StyledTableCell>
+                      <Typography variant="body2">
+                        {order.items}
+                      </Typography>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        ${order.total.toFixed(2)}
+                      </Typography>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Chip
+                        label={getStatusText(order.status)}
+                        color={getStatusColor(order.status)}
+                        size="small"
+                        sx={{ fontWeight: 500, minWidth: 90 }}
+                      />
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {order.date}
+                      </Typography>
+                    </StyledTableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Typography color="text.secondary">No orders found</Typography>
+          </Box>
+        )}
       </CardContent>
     </StyledCard>
   );

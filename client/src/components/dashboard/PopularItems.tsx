@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -11,26 +11,22 @@ import {
   Avatar,
   LinearProgress,
   useTheme,
-  Button
+  Button,
+  CircularProgress
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
+import apiService from '../../services/apiService';
+import { PopularItemData, transformPopularItems } from '../../utils/dataTransformers';
 
-interface MenuItem {
-  id: string;
-  name: string;
-  image?: string;
-  category: string;
-  popularity: number; // 0-100
-  sales: number;
-  price: number;
-}
+// We can use PopularItemData directly instead of creating a new interface
+type MenuItem = PopularItemData;
 
 interface PopularItemsProps {
   title: string;
   subtitle?: string;
-  items: MenuItem[];
+  items?: MenuItem[]; // Make optional to support both prop-based and API-fetched data
   onViewAll?: () => void;
 }
 
@@ -59,10 +55,43 @@ const StyledLinearProgress = styled(LinearProgress)(({ theme }) => ({
 const PopularItems: React.FC<PopularItemsProps> = ({
   title,
   subtitle,
-  items,
+  items: propItems,
   onViewAll,
 }) => {
   const theme = useTheme();
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // If items are provided via props, use those
+    if (propItems && propItems.length > 0) {
+      setItems(propItems);
+      return;
+    }
+
+    // Otherwise fetch from API
+    const fetchPopularItems = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const itemSalesData = await apiService.getItemSales();
+        if (itemSalesData && itemSalesData.length > 0) {
+          const popularItems = transformPopularItems(itemSalesData);
+          setItems(popularItems);
+        } else {
+          setError('No popular items data available');
+        }
+      } catch (err) {
+        console.error('Error fetching popular items:', err);
+        setError('Could not load popular items data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPopularItems();
+  }, [propItems]);
 
   const getLinearProgressColor = (popularity: number) => {
     if (popularity >= 75) return 'success';
@@ -84,6 +113,11 @@ const PopularItems: React.FC<PopularItemsProps> = ({
                 {subtitle}
               </Typography>
             )}
+            {error && (
+              <Typography variant="caption" color="error">
+                {error}
+              </Typography>
+            )}
           </Box>
           {onViewAll && (
             <Button
@@ -96,56 +130,65 @@ const PopularItems: React.FC<PopularItemsProps> = ({
           )}
         </Box>
 
-        <List disablePadding sx={{ flexGrow: 1 }}>
-          {items.map((item) => (
-            <StyledListItem key={item.id} alignItems="flex-start">
-              <ListItemAvatar>
-                <Avatar
-                  src={item.image}
-                  variant="rounded"
-                  sx={{ 
-                    width: 48, 
-                    height: 48, 
-                    borderRadius: 2,
-                    backgroundColor: theme.palette.background.default
-                  }}
-                >
-                  <RestaurantIcon />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body1" fontWeight="medium">
-                      {item.name}
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      ${item.price.toFixed(2)}
-                    </Typography>
-                  </Box>
-                }
-                secondary={
-                  <Box sx={{ mt: 0.5 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.category}
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress color="secondary" />
+          </Box>
+        ) : items.length > 0 ? (
+          <List disablePadding sx={{ flexGrow: 1 }}>
+            {items.map((item) => (
+              <StyledListItem key={item.id} alignItems="flex-start">
+                <ListItemAvatar>
+                  <Avatar
+                    variant="rounded"
+                    sx={{ 
+                      width: 48, 
+                      height: 48, 
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.background.default
+                    }}
+                  >
+                    <RestaurantIcon />
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {item.name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.sales} sold
+                      <Typography variant="body2" fontWeight="bold">
+                        ${item.price.toFixed(2)}
                       </Typography>
                     </Box>
-                    <StyledLinearProgress 
-                      variant="determinate" 
-                      value={item.popularity} 
-                      color={getLinearProgressColor(item.popularity)}
-                    />
-                  </Box>
-                }
-                secondaryTypographyProps={{ component: 'div' }}
-              />
-            </StyledListItem>
-          ))}
-        </List>
+                  }
+                  secondary={
+                    <Box sx={{ mt: 0.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.category}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.sales} sold
+                        </Typography>
+                      </Box>
+                      <StyledLinearProgress 
+                        variant="determinate" 
+                        value={item.popularity} 
+                        color={getLinearProgressColor(item.popularity)}
+                      />
+                    </Box>
+                  }
+                  secondaryTypographyProps={{ component: 'div' }}
+                />
+              </StyledListItem>
+            ))}
+          </List>
+        ) : (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Typography color="text.secondary">No popular items found</Typography>
+          </Box>
+        )}
       </CardContent>
     </StyledCard>
   );

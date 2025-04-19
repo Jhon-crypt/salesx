@@ -1,5 +1,5 @@
-import React from 'react';
-import { Grid, Typography, Box, Breadcrumbs, Link, useTheme, Paper, Stack } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Grid, Typography, Box, Breadcrumbs, Link, useTheme, Paper, Stack, CircularProgress } from '@mui/material';
 import { format } from 'date-fns';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -15,135 +15,80 @@ import RecentOrders from '../components/dashboard/RecentOrders';
 import PopularItems from '../components/dashboard/PopularItems';
 import RevenueBreakdown from '../components/dashboard/RevenueBreakdown';
 
-// Sample Data
-const recentOrders = [
-  {
-    id: '2587',
-    customer: { name: 'John Smith', initial: 'JS' },
-    items: 3,
-    total: 49.99,
-    status: 'completed' as const,
-    date: '10 min ago',
-    tableNumber: 5,
-  },
-  {
-    id: '2586',
-    customer: { name: 'Alice Johnson', initial: 'AJ' },
-    items: 2,
-    total: 28.50,
-    status: 'in_progress' as const,
-    date: '25 min ago',
-    tableNumber: 3,
-  },
-  {
-    id: '2585',
-    customer: { name: 'Robert Williams', initial: 'RW' },
-    items: 5,
-    total: 76.20,
-    status: 'pending' as const,
-    date: '1 hour ago',
-    tableNumber: 8,
-  },
-  {
-    id: '2584',
-    customer: { name: 'Emma Brown', initial: 'EB' },
-    items: 1,
-    total: 12.99,
-    status: 'completed' as const,
-    date: '2 hours ago',
-    tableNumber: 2,
-  },
-  {
-    id: '2583',
-    customer: { name: 'David Miller', initial: 'DM' },
-    items: 4,
-    total: 55.75,
-    status: 'cancelled' as const,
-    date: '3 hours ago',
-    tableNumber: 7,
-  },
-];
-
-const popularItems = [
-  {
-    id: '1',
-    name: 'Grilled Salmon',
-    category: 'Main Course',
-    popularity: 85,
-    sales: 138,
-    price: 22.99,
-  },
-  {
-    id: '2',
-    name: 'Margherita Pizza',
-    category: 'Pizza',
-    popularity: 92,
-    sales: 172,
-    price: 16.99,
-  },
-  {
-    id: '3',
-    name: 'Caesar Salad',
-    category: 'Salad',
-    popularity: 78,
-    sales: 94,
-    price: 12.50,
-  },
-  {
-    id: '4',
-    name: 'Chocolate Lava Cake',
-    category: 'Dessert',
-    popularity: 88,
-    sales: 116,
-    price: 8.99,
-  },
-  {
-    id: '5',
-    name: 'Mango Smoothie',
-    category: 'Beverages',
-    popularity: 65,
-    sales: 82,
-    price: 5.99,
-  },
-];
-
-// Revenue breakdown data
-const revenueCategories = [
-  {
-    name: 'Main Course',
-    value: 1423.50,
-    color: '#3f51b5',
-    percentage: 48,
-  },
-  {
-    name: 'Appetizers',
-    value: 567.25,
-    color: '#2196f3',
-    percentage: 19,
-  },
-  {
-    name: 'Desserts',
-    value: 389.75,
-    color: '#00bcd4',
-    percentage: 13,
-  },
-  {
-    name: 'Beverages',
-    value: 324.50,
-    color: '#4caf50',
-    percentage: 11,
-  },
-  {
-    name: 'Alcohol',
-    value: 273.50,
-    color: '#ff9800',
-    percentage: 9,
-  },
-];
+// API and transformers
+import apiService from '../services/apiService';
+import { 
+  generateStatsCardData, 
+  transformPopularItems, 
+  transformRevenueBreakdown,
+  PopularItemData,
+  RevenueBreakdownData,
+  StatsCardData 
+} from '../utils/dataTransformers';
 
 const Dashboard: React.FC = () => {
   const theme = useTheme();
   const today = format(new Date(), 'EEEE, MMMM d, yyyy');
+  
+  const [statsData, setStatsData] = useState<StatsCardData>({
+    todaySales: 0,
+    todayOrders: 0,
+    todayCustomers: 0,
+    menuItems: 84,
+    salesTrend: 0,
+    ordersTrend: 0,
+    customersTrend: 0
+  });
+
+  const [popularItems, setPopularItems] = useState<PopularItemData[]>([]);
+  const [revenueData, setRevenueData] = useState<RevenueBreakdownData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Fetch sales data for stats card
+        const salesData = await apiService.getStoreSales();
+        if (salesData && salesData.length > 0) {
+          const newStatsData = generateStatsCardData(salesData);
+          setStatsData(newStatsData);
+        }
+        
+        // Fetch item sales data for popular items and revenue breakdown
+        const itemSalesData = await apiService.getItemSales();
+        if (itemSalesData && itemSalesData.length > 0) {
+          // Transform for popular items
+          const popularItemsData = transformPopularItems(itemSalesData);
+          setPopularItems(popularItemsData);
+          
+          // Transform for revenue breakdown
+          const revenueBreakdownData = transformRevenueBreakdown(itemSalesData);
+          setRevenueData(revenueBreakdownData);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load some dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
+  }, []);
+
+  const handleViewAllOrders = () => {
+    console.log('Navigate to all orders page');
+    // Navigate to /sales/orders in a real implementation
+  };
+
+  const handleViewAllItems = () => {
+    console.log('Navigate to all menu items');
+    // Navigate to /menu/items in a real implementation
+  };
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -173,23 +118,25 @@ const Dashboard: React.FC = () => {
                 All your restaurant metrics in one place
               </Typography>
             </Box>
-            <Box sx={{ 
-              py: 0.5, 
-              px: 2, 
-              borderRadius: 2, 
-              backgroundColor: '#10b98120', 
-              display: 'flex', 
-              alignItems: 'center'
-            }}>
-              <ArrowUpwardIcon sx={{ color: theme.palette.success.main, fontSize: 16, mr: 1 }} />
-              <Typography 
-                variant="body2" 
-                color={theme.palette.success.main}
-                fontWeight="medium"
-              >
-                Sales Up 24% from last week
-              </Typography>
-            </Box>
+            {!loading && statsData.salesTrend > 0 && (
+              <Box sx={{ 
+                py: 0.5, 
+                px: 2, 
+                borderRadius: 2, 
+                backgroundColor: '#10b98120', 
+                display: 'flex', 
+                alignItems: 'center'
+              }}>
+                <ArrowUpwardIcon sx={{ color: theme.palette.success.main, fontSize: 16, mr: 1 }} />
+                <Typography 
+                  variant="body2" 
+                  color={theme.palette.success.main}
+                  fontWeight="medium"
+                >
+                  Sales Up {Math.round(statsData.salesTrend)}% from yesterday
+                </Typography>
+              </Box>
+            )}
           </Box>
           
           <Breadcrumbs aria-label="breadcrumb">
@@ -210,89 +157,101 @@ const Dashboard: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {today}
           </Typography>
+          {error && (
+            <Typography variant="body2" color="error">
+              {error}
+            </Typography>
+          )}
         </Stack>
       </Paper>
 
-      {/* Stats Cards */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
-        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
-          <StatsCard
-            title="Today's Sales"
-            value={2897.50}
-            prefix="$"
-            trend={12.5}
-            trendLabel="vs Yesterday"
-            icon={<ReceiptIcon />}
-            color="primary"
-          />
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+          <CircularProgress color="secondary" />
         </Box>
-        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
-          <StatsCard
-            title="Active Orders"
-            value={37}
-            trend={-5.3}
-            trendLabel="vs Last Hour"
-            icon={<ShoppingCartIcon />}
-            color="secondary"
-          />
-        </Box>
-        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
-          <StatsCard
-            title="Customers"
-            value={158}
-            trend={8.1}
-            trendLabel="vs Yesterday"
-            icon={<GroupIcon />}
-            color="success"
-          />
-        </Box>
-        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
-          <StatsCard
-            title="Menu Items"
-            value={84}
-            suffix="items"
-            icon={<StoreIcon />}
-            color="warning"
-          />
-        </Box>
-      </Box>
+      ) : (
+        <>
+          {/* Stats Cards */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
+            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+              <StatsCard
+                title="Today's Sales"
+                value={statsData.todaySales}
+                prefix="$"
+                trend={statsData.salesTrend}
+                trendLabel="vs Yesterday"
+                icon={<ReceiptIcon />}
+                color="primary"
+              />
+            </Box>
+            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+              <StatsCard
+                title="Active Orders"
+                value={statsData.todayOrders}
+                trend={statsData.ordersTrend}
+                trendLabel="vs Yesterday"
+                icon={<ShoppingCartIcon />}
+                color="secondary"
+              />
+            </Box>
+            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+              <StatsCard
+                title="Customers"
+                value={statsData.todayCustomers}
+                trend={statsData.customersTrend}
+                trendLabel="vs Yesterday"
+                icon={<GroupIcon />}
+                color="success"
+              />
+            </Box>
+            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+              <StatsCard
+                title="Menu Items"
+                value={statsData.menuItems}
+                suffix="items"
+                icon={<StoreIcon />}
+                color="warning"
+              />
+            </Box>
+          </Box>
 
-      {/* Sales Chart */}
-      <Box sx={{ mb: 3 }}>
-        <SalesChart
-          title="Sales Overview"
-          subtitle="Track your restaurant's sales performance over time"
-        />
-      </Box>
+          {/* Sales Chart */}
+          <Box sx={{ mb: 3 }}>
+            <SalesChart
+              title="Sales Overview"
+              subtitle="Track your restaurant's sales performance over time"
+            />
+          </Box>
 
-      {/* Revenue Breakdown */}
-      <Box sx={{ mb: 3 }}>
-        <RevenueBreakdown
-          title="Revenue Breakdown"
-          subtitle="Sales distribution by food category"
-          data={revenueCategories}
-        />
-      </Box>
+          {/* Revenue Breakdown */}
+          <Box sx={{ mb: 3 }}>
+            <RevenueBreakdown
+              title="Revenue Breakdown"
+              subtitle="Sales distribution by food category"
+              data={revenueData}
+            />
+          </Box>
 
-      {/* Orders and Popular Items */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
-        <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
-          <RecentOrders
-            title="Recent Orders"
-            subtitle="Latest orders from your customers"
-            orders={recentOrders}
-            onViewAll={() => console.log('View all orders')}
-          />
-        </Box>
-        <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
-          <PopularItems
-            title="Popular Items"
-            subtitle="Best-selling items in your menu"
-            items={popularItems}
-            onViewAll={() => console.log('View all menu items')}
-          />
-        </Box>
-      </Box>
+          {/* Orders and Popular Items */}
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
+            <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
+              <RecentOrders
+                title="Recent Orders"
+                subtitle="Latest orders from your customers"
+                onViewAll={handleViewAllOrders}
+              />
+            </Box>
+            <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
+              <PopularItems
+                title="Popular Items"
+                subtitle="Best-selling items in your menu"
+                items={popularItems}
+                onViewAll={handleViewAllItems}
+              />
+            </Box>
+          </Box>
+        </>
+      )}
     </Box>
   );
 };
