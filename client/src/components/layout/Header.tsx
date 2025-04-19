@@ -23,6 +23,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import InputBase from '@mui/material/InputBase';
 import { styled, alpha } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../App';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -90,6 +92,8 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState<null | HTMLElement>(null);
   
@@ -107,6 +111,12 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
 
   const handleNotificationsClose = () => {
     setNotificationsAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleProfileMenuClose();
+    logout();
+    navigate('/login');
   };
 
   const notifications = [
@@ -256,7 +266,7 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
           <ListItemText>Settings</ListItemText>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleProfileMenuClose}>
+        <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>

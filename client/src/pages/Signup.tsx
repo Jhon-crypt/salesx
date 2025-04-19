@@ -130,8 +130,11 @@ const Signup: React.FC = () => {
           boxShadow: '0 8px 40px rgba(0,0,0,0.12)',
           margin: '0 auto',
           position: 'relative',
+          height: { xs: 'auto', sm: '600px' },
           maxHeight: '85vh',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
         <Box sx={{ textAlign: 'center', mb: 3 }}>
