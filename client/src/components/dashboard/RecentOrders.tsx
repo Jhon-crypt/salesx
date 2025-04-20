@@ -1,33 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  Typography, 
-  Box, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  Chip, 
-  Avatar,
-  Button,
-  useTheme,
-  CircularProgress 
+import React from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  CircularProgress,
+  Button
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import useApi from '../../hooks/useApi';
+import { dbApi, TransactionItem } from '../../services/api';
+import { format } from 'date-fns';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
-import apiService from '../../services/apiService';
-import { RecentOrderData, transformRecentOrders } from '../../utils/dataTransformers';
-
-// Type declaration for Order
-type Order = RecentOrderData;
 
 interface RecentOrdersProps {
   title: string;
   subtitle?: string;
-  orders?: Order[]; // Make optional to allow both static and fetched data
   onViewAll?: () => void;
 }
 
@@ -35,228 +30,170 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  width: '100%',
-  minHeight: '400px', // Add minimum height to prevent layout shifts
 }));
 
-const StyledTableCell = styled(TableCell)(({ theme }) => ({
-  padding: theme.spacing(1.5),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
+const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
+  let color;
+  switch (status.toLowerCase()) {
+    case 'completed':
+      color = theme.palette.success.main;
+      break;
+    case 'pending':
+      color = theme.palette.warning.main;
+      break;
+    case 'canceled':
+    case 'void':
+      color = theme.palette.error.main;
+      break;
+    default:
+      color = theme.palette.info.main;
+  }
 
-const StyledTableHeadCell = styled(TableCell)(({ theme }) => ({
-  backgroundColor: theme.palette.background.default,
-  padding: theme.spacing(1.5),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-  fontWeight: 600,
-  color: theme.palette.text.secondary,
-}));
+  return {
+    backgroundColor: color,
+    color: theme.palette.getContrastText(color),
+    fontWeight: 'bold',
+    fontSize: '0.75rem',
+  };
+});
+
+// Process transaction items into order-like format
+const processTransactions = (transactions: any[]) => {
+  if (!transactions || transactions.length === 0) return [];
+
+  // Group transactions by check_number (order ID)
+  const orderMap = new Map<string, any>();
+  
+  transactions.forEach(item => {
+    if (!item || !item.check_number) return; // Skip invalid items
+    
+    const orderId = item.check_number.toString();
+    
+    // Format date - using business_date instead of transaction_date
+    const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
+    const date = new Date(dateStr);
+    
+    if (!orderMap.has(orderId)) {
+      orderMap.set(orderId, {
+        id: orderId,
+        customer: `Guest ${orderId.slice(-4)}`,
+        items: [],
+        total: 0,
+        status: 'Completed', // Default status
+        date: date,
+        dateFormatted: format(date, 'MMM dd, yyyy h:mm a')
+      });
+    }
+    
+    const order = orderMap.get(orderId);
+    // Use item_id if menu_item_name is not available
+    const itemName = item.menu_item_name || `Item #${item.item_id}`;
+    order.items.push(itemName);
+    
+    // Use price if item_sell_price is not available
+    const itemPrice = typeof item.item_sell_price === 'number' ? item.item_sell_price : 
+                      typeof item.price === 'number' ? item.price : 0;
+    
+    order.total += itemPrice;
+  });
+  
+  // Convert map to array and sort by date (most recent first)
+  return Array.from(orderMap.values())
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .slice(0, 5); // Only keep the 5 most recent orders
+};
 
 const RecentOrders: React.FC<RecentOrdersProps> = ({
   title,
   subtitle,
-  orders: propOrders,
   onViewAll,
 }) => {
-  const theme = useTheme();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // If orders are provided via props, use those (for backward compatibility)
-    if (propOrders && propOrders.length > 0) {
-      setOrders(propOrders);
-      return;
-    }
-
-    // Otherwise fetch from API
-    const fetchOrders = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const transactionItems = await apiService.getTransactionItems();
-        if (transactionItems && transactionItems.length > 0) {
-          const transformedOrders = transformRecentOrders(transactionItems);
-          setOrders(transformedOrders);
-        } else {
-          setError('No order data available');
-        }
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-        setError('Could not load order data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
-  }, [propOrders]);
-
-  const getStatusColor = (status: Order['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'secondary';
-      case 'pending':
-        return 'warning';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusText = (status: Order['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'Completed';
-      case 'in_progress':
-        return 'In Progress';
-      case 'pending':
-        return 'Pending';
-      case 'cancelled':
-        return 'Cancelled';
-      default:
-        return 'Unknown';
-    }
-  };
+  // Fetch transaction items from API
+  const { data: transactionItems, isLoading, error } = useApi(() => dbApi.getTransactionItems());
+  
+  // Process transaction items into orders
+  const orders = React.useMemo(() => {
+    return processTransactions(transactionItems || []);
+  }, [transactionItems]);
 
   return (
     <StyledCard>
-      <CardContent sx={{ 
-        padding: theme.spacing(2), 
-        flexGrow: 1, 
-        display: 'flex', 
-        flexDirection: 'column',
-        width: '100%' 
-      }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box>
-            <Typography variant="h6" fontWeight="bold">
-              {title}
-            </Typography>
-            {subtitle && (
-              <Typography variant="body2" color="text.secondary">
-                {subtitle}
+      <CardContent sx={{ padding: 2, flexGrow: 1 }}>
+        {title && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6" fontWeight="bold">
+                {title}
               </Typography>
-            )}
-            {error && (
-              <Typography variant="caption" color="error">
-                {error}
-              </Typography>
+              {subtitle && (
+                <Typography variant="body2" color="text.secondary">
+                  {subtitle}
+                </Typography>
+              )}
+            </Box>
+            {onViewAll && (
+              <Button
+                endIcon={<ArrowRightAltIcon />}
+                onClick={onViewAll}
+                size="small"
+              >
+                View All
+              </Button>
             )}
           </Box>
-          {onViewAll && (
-            <Button
-              endIcon={<ArrowRightAltIcon />}
-              onClick={onViewAll}
-              size="small"
-            >
-              View All
-            </Button>
-          )}
-        </Box>
-
-        {loading ? (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            py: 4,
-            minHeight: '200px', // Ensure consistent height during loading
-            alignItems: 'center' 
-          }}>
-            <CircularProgress color="secondary" />
+        )}
+        
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+            <CircularProgress />
           </Box>
-        ) : orders.length > 0 ? (
-          <TableContainer sx={{ flexGrow: 1, width: '100%' }}>
-            <Table size="small">
+        ) : error ? (
+          <Typography color="error">
+            Error loading transaction data: {error.message}
+          </Typography>
+        ) : orders.length === 0 ? (
+          <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
+            No recent orders found
+          </Typography>
+        ) : (
+          <TableContainer>
+            <Table>
               <TableHead>
                 <TableRow>
-                  <StyledTableHeadCell>Order ID</StyledTableHeadCell>
-                  <StyledTableHeadCell>Customer</StyledTableHeadCell>
-                  {orders.some(order => order.tableNumber !== undefined) && (
-                    <StyledTableHeadCell>Table</StyledTableHeadCell>
-                  )}
-                  <StyledTableHeadCell>Items</StyledTableHeadCell>
-                  <StyledTableHeadCell>Total</StyledTableHeadCell>
-                  <StyledTableHeadCell>Status</StyledTableHeadCell>
-                  <StyledTableHeadCell>Date</StyledTableHeadCell>
+                  <TableCell>Order ID</TableCell>
+                  <TableCell>Customer</TableCell>
+                  <TableCell>Items</TableCell>
+                  <TableCell align="right">Total</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Date</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {orders.map((order) => (
                   <TableRow key={order.id} hover>
-                    <StyledTableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        #{order.id}
-                      </Typography>
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Avatar
-                          src={order.customer.avatar}
-                          sx={{ width: 28, height: 28, marginRight: 1 }}
-                        >
-                          {order.customer.initial}
-                        </Avatar>
-                        <Typography variant="body2">
-                          {order.customer.name}
-                        </Typography>
-                      </Box>
-                    </StyledTableCell>
-                    {orders.some(order => order.tableNumber !== undefined) && (
-                      <StyledTableCell>
-                        {order.tableNumber ? (
-                          <Typography variant="body2">
-                            Table {order.tableNumber}
-                          </Typography>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        )}
-                      </StyledTableCell>
-                    )}
-                    <StyledTableCell>
-                      <Typography variant="body2">
-                        {order.items}
-                      </Typography>
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        ${order.total.toFixed(2)}
-                      </Typography>
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      <Chip
-                        label={getStatusText(order.status)}
-                        color={getStatusColor(order.status)}
+                    <TableCell component="th" scope="row">
+                      #{order.id}
+                    </TableCell>
+                    <TableCell>{order.customer}</TableCell>
+                    <TableCell>
+                      {order.items.length > 2
+                        ? `${order.items[0]}, ${order.items[1]} +${order.items.length - 2} more`
+                        : order.items.join(', ')}
+                    </TableCell>
+                    <TableCell align="right">${order.total.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <StatusChip
+                        label={order.status}
+                        status={order.status}
                         size="small"
-                        sx={{ fontWeight: 500, minWidth: 90 }}
                       />
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {order.date}
-                      </Typography>
-                    </StyledTableCell>
+                    </TableCell>
+                    <TableCell>{order.dateFormatted}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
-        ) : (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            py: 4,
-            minHeight: '200px', // Ensure consistent height when empty
-            alignItems: 'center' 
-          }}>
-            <Typography color="text.secondary">No orders found</Typography>
-          </Box>
         )}
       </CardContent>
     </StyledCard>

@@ -230,21 +230,23 @@ router.get('/item-sales', async (req, res) => {
         SELECT TOP 50
           i.LongName as item_name,
           i.ItemId as item_number,
-          is.Business_Date as sale_date,
-          is.Store_Number as store_id,
+          sales.DateOfBusiness as sale_date,
+          sales.FKStoreId as store_id,
           s.Name as store_name,
-          is.Quantity as quantity_sold,
-          is.Net_Sales as sales_amount
+          COUNT(*) as quantity_sold,
+          SUM(sales.Price) as sales_amount
         FROM
-          dbo.DpvHstItemSales is
+          dbo.DpvHstGndItem sales
         JOIN
-          dbo.Item i ON is.Item_Number = i.ItemId
+          dbo.Item i ON sales.FKItemId = i.ItemId
         JOIN
-          dbo.gblStore s ON is.Store_Number = s.StoreId
+          dbo.gblStore s ON sales.FKStoreId = s.StoreId
         WHERE
-          is.Business_Date >= DATEADD(day, -30, GETDATE())
+          sales.DateOfBusiness >= DATEADD(day, -30, GETDATE())
+        GROUP BY
+          i.LongName, i.ItemId, sales.DateOfBusiness, sales.FKStoreId, s.Name
         ORDER BY
-          is.Business_Date DESC, is.Quantity DESC
+          quantity_sold DESC, sales_amount DESC
       `);
     
     res.json({ 
@@ -253,7 +255,7 @@ router.get('/item-sales', async (req, res) => {
       data: result.recordset
     });
   } catch (err) {
-    console.error('KFC item sales query error:', err);
+    console.error('Item sales query error:', err);
     res.status(500).json({ 
       success: false, 
       message: 'Error retrieving item sales data',

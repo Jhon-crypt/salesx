@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -17,16 +17,12 @@ import {
 import { styled } from '@mui/material/styles';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import apiService from '../../services/apiService';
-import { PopularItemData, transformPopularItems } from '../../utils/dataTransformers';
-
-// We can use PopularItemData directly instead of creating a new interface
-type MenuItem = PopularItemData;
+import useApi from '../../hooks/useApi';
+import { dbApi, ItemSalesData } from '../../services/api';
 
 interface PopularItemsProps {
   title: string;
   subtitle?: string;
-  items?: MenuItem[]; // Make optional to support both prop-based and API-fetched data
   onViewAll?: () => void;
 }
 
@@ -34,8 +30,6 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  width: '100%',
-  minHeight: '400px', // Add minimum height to prevent layout shifts
 }));
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
@@ -54,46 +48,66 @@ const StyledLinearProgress = styled(LinearProgress)(({ theme }) => ({
   marginTop: theme.spacing(1),
 }));
 
+// Process items to calculate popularity
+const processItems = (items: ItemSalesData[]) => {
+  if (!items || items.length === 0) return [];
+
+  // Group by item name
+  const itemMap = new Map<string, any>();
+  
+  items.forEach(item => {
+    const itemName = item.item_name;
+    const itemNumber = item.item_number.toString();
+    
+    if (!itemMap.has(itemNumber)) {
+      itemMap.set(itemNumber, {
+        id: itemNumber,
+        name: itemName,
+        category: 'Menu Item', // Default category
+        sales: 0,
+        quantity: 0,
+        price: 0,
+        popularity: 0
+      });
+    }
+    
+    const menuItem = itemMap.get(itemNumber);
+    menuItem.sales += item.sales_amount || 0;
+    menuItem.quantity += item.quantity_sold || 0;
+  });
+  
+  // Convert to array and sort by quantity
+  const processedItems = Array.from(itemMap.values());
+  
+  // Find max quantity to calculate popularity percentage
+  const maxQuantity = Math.max(...processedItems.map(item => item.quantity));
+  
+  // Calculate popularity and format data
+  processedItems.forEach(item => {
+    item.popularity = maxQuantity > 0 ? Math.round((item.quantity / maxQuantity) * 100) : 0;
+    item.price = item.sales / item.quantity || 0;
+  });
+  
+  // Sort by popularity and take top 5
+  return processedItems
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
+};
+
 const PopularItems: React.FC<PopularItemsProps> = ({
   title,
   subtitle,
-  items: propItems,
   onViewAll,
 }) => {
   const theme = useTheme();
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // If items are provided via props, use those
-    if (propItems && propItems.length > 0) {
-      setItems(propItems);
-      return;
-    }
-
-    // Otherwise fetch from API
-    const fetchPopularItems = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const itemSalesData = await apiService.getItemSales();
-        if (itemSalesData && itemSalesData.length > 0) {
-          const popularItems = transformPopularItems(itemSalesData);
-          setItems(popularItems);
-        } else {
-          setError('No popular items data available');
-        }
-      } catch (err) {
-        console.error('Error fetching popular items:', err);
-        setError('Could not load popular items data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPopularItems();
-  }, [propItems]);
+  
+  // Fetch item sales data from API
+  const { data: itemSalesData, isLoading, error } = useApi(() => dbApi.getItemSales());
+  
+  // Process items
+  const items = React.useMemo(() => {
+    return processItems(itemSalesData || []);
+  }, [itemSalesData]);
 
   const getLinearProgressColor = (popularity: number) => {
     if (popularity >= 75) return 'success';
@@ -104,13 +118,7 @@ const PopularItems: React.FC<PopularItemsProps> = ({
 
   return (
     <StyledCard>
-      <CardContent sx={{ 
-        padding: theme.spacing(2), 
-        flexGrow: 1, 
-        display: 'flex', 
-        flexDirection: 'column',
-        width: '100%'
-      }}>
+      <CardContent sx={{ padding: theme.spacing(2), flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
             <Typography variant="h6" fontWeight="bold">
@@ -119,11 +127,6 @@ const PopularItems: React.FC<PopularItemsProps> = ({
             {subtitle && (
               <Typography variant="body2" color="text.secondary">
                 {subtitle}
-              </Typography>
-            )}
-            {error && (
-              <Typography variant="caption" color="error">
-                {error}
               </Typography>
             )}
           </Box>
@@ -138,19 +141,20 @@ const PopularItems: React.FC<PopularItemsProps> = ({
           )}
         </Box>
 
-        {loading ? (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            py: 4,
-            minHeight: '300px', // Ensure consistent height during loading
-            alignItems: 'center',
-            width: '100%'
-          }}>
-            <CircularProgress color="secondary" />
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+            <CircularProgress />
           </Box>
-        ) : items.length > 0 ? (
-          <List disablePadding sx={{ flexGrow: 1, width: '100%' }}>
+        ) : error ? (
+          <Typography color="error">
+            Error loading popular items data: {error.message}
+          </Typography>
+        ) : items.length === 0 ? (
+          <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
+            No popular items found
+          </Typography>
+        ) : (
+          <List disablePadding sx={{ flexGrow: 1 }}>
             {items.map((item) => (
               <StyledListItem key={item.id} alignItems="flex-start">
                 <ListItemAvatar>
@@ -184,7 +188,7 @@ const PopularItems: React.FC<PopularItemsProps> = ({
                           {item.category}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {item.sales} sold
+                          {item.quantity} sold
                         </Typography>
                       </Box>
                       <StyledLinearProgress 
@@ -199,17 +203,6 @@ const PopularItems: React.FC<PopularItemsProps> = ({
               </StyledListItem>
             ))}
           </List>
-        ) : (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            py: 4,
-            minHeight: '300px', // Ensure consistent height when empty
-            alignItems: 'center',
-            width: '100%'
-          }}>
-            <Typography color="text.secondary">No popular items found</Typography>
-          </Box>
         )}
       </CardContent>
     </StyledCard>
