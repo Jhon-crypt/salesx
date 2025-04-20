@@ -220,14 +220,16 @@ router.get('/store-sales', async (req, res) => {
   }
 });
 
-// Get item sales data
+// Get item sales data - optimized for performance
 router.get('/item-sales', async (req, res) => {
   try {
     await pool.connect();
     
+    // Use WITH (NOLOCK) hint to avoid locking tables and improve performance
+    // Reduce date range from 30 to 7 days for faster queries
     const result = await pool.request()
       .query(`
-        SELECT TOP 50
+        SELECT TOP 20
           i.LongName as item_name,
           i.ItemId as item_number,
           sales.DateOfBusiness as sale_date,
@@ -236,13 +238,13 @@ router.get('/item-sales', async (req, res) => {
           COUNT(*) as quantity_sold,
           SUM(sales.Price) as sales_amount
         FROM
-          dbo.DpvHstGndItem sales
+          dbo.DpvHstGndItem sales WITH (NOLOCK)
         JOIN
-          dbo.Item i ON sales.FKItemId = i.ItemId
+          dbo.Item i WITH (NOLOCK) ON sales.FKItemId = i.ItemId
         JOIN
-          dbo.gblStore s ON sales.FKStoreId = s.StoreId
+          dbo.gblStore s WITH (NOLOCK) ON sales.FKStoreId = s.StoreId
         WHERE
-          sales.DateOfBusiness >= DATEADD(day, -30, GETDATE())
+          sales.DateOfBusiness >= DATEADD(day, -7, GETDATE())
         GROUP BY
           i.LongName, i.ItemId, sales.DateOfBusiness, sales.FKStoreId, s.Name
         ORDER BY
@@ -264,15 +266,15 @@ router.get('/item-sales', async (req, res) => {
   }
 });
 
-// Get transaction details based on GndItem data dictionary
+// Get transaction details - optimized for performance
 router.get('/transaction-items', async (req, res) => {
   try {
     await pool.connect();
     
-    // Simplified query that doesn't join with other tables to avoid timeout
+    // Use query hints, fewer columns, and reduced date range
     const result = await pool.request()
       .query(`
-        SELECT TOP 50
+        SELECT TOP 30
           FKItemId as item_id,
           CheckNumber as check_number,
           DateOfBusiness as business_date,
@@ -280,13 +282,11 @@ router.get('/transaction-items', async (req, res) => {
           Quantity as quantity,
           Type as record_type,
           FKCategoryId as category_id,
-          FKOrderModeId as order_mode_id,
-          FKStoreId as store_id,
-          FKEmployeeNumber as employee_id
+          FKStoreId as store_id
         FROM
-          dbo.DpvHstGndItem
+          dbo.DpvHstGndItem WITH (NOLOCK)
         WHERE
-          DateOfBusiness >= DATEADD(day, -10, GETDATE())
+          DateOfBusiness >= DATEADD(day, -3, GETDATE())
         ORDER BY
           DateOfBusiness DESC, CheckNumber DESC
       `);
@@ -351,102 +351,85 @@ router.get('/void-transactions', async (req, res) => {
 // Get a summary of today's sales, active orders, and customer metrics
 router.get('/sales-summary', async (req, res) => {
   try {
+    // Use static cache to avoid recalculating within short time periods
+    const CACHE_KEY = 'sales_summary_cache';
+    const CACHE_TTL = 60000; // 1 minute cache
+    
+    if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
+      return res.json(global[CACHE_KEY].data);
+    }
+    
     await pool.connect();
     
     // Get today's date in SQL Server format
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]; // Yesterday
 
-    // Query for today's sales summary
-    const todaySalesResult = await pool.request()
+    // Use faster DpvHstSalesTotals for summary data when possible
+    // Use WITH (NOLOCK) for all queries to avoid blocking
+    // Use TOP to limit scanned rows
+    const result = await pool.request()
       .query(`
-        SELECT 
-          SUM(Price * Quantity) as daily_sales,
-          COUNT(DISTINCT CheckNumber) as check_count,
-          COUNT(DISTINCT CheckNumber) * 1.5 as guest_count
-        FROM 
-          dbo.DpvHstGndItem
-        WHERE 
-          DateOfBusiness = '${today}'
-      `);
-    
-    // Query for yesterday's sales for comparison
-    const yesterdaySalesResult = await pool.request()
-      .query(`
-        SELECT 
-          SUM(Price * Quantity) as daily_sales
-        FROM 
-          dbo.DpvHstGndItem
-        WHERE 
-          DateOfBusiness = '${yesterday}'
-      `);
-    
-    // Query for active orders (orders in the last hour)
-    const activeOrdersResult = await pool.request()
-      .query(`
-        SELECT 
-          COUNT(DISTINCT CheckNumber) as active_orders
-        FROM 
-          dbo.DpvHstGndItem
-        WHERE 
-          DateOfBusiness = '${today}'
-          AND DATEDIFF(HOUR, CAST(DateOfBusiness as datetime) + CAST(CAST(Hour as varchar) + ':' + CAST(Minute as varchar) as datetime), GETDATE()) <= 1
-      `);
-    
-    // Query for active orders an hour ago for comparison
-    const previousHourOrdersResult = await pool.request()
-      .query(`
-        SELECT 
-          COUNT(DISTINCT CheckNumber) as previous_hour_orders
-        FROM 
-          dbo.DpvHstGndItem
-        WHERE 
-          DateOfBusiness = '${today}'
-          AND DATEDIFF(HOUR, CAST(DateOfBusiness as datetime) + CAST(CAST(Hour as varchar) + ':' + CAST(Minute as varchar) as datetime), GETDATE()) <= 2
-          AND DATEDIFF(HOUR, CAST(DateOfBusiness as datetime) + CAST(CAST(Hour as varchar) + ':' + CAST(Minute as varchar) as datetime), GETDATE()) > 1
+        SELECT
+          (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) WHERE DateOfBusiness = '${today}') AS t) AS todaySales,
+          (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) WHERE DateOfBusiness = '${yesterday}') AS y) AS yesterdaySales,
+          (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) WHERE DateOfBusiness = '${today}') AS t) AS todayCheckCount,
+          (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) WHERE DateOfBusiness = '${yesterday}') AS y) AS yesterdayCheckCount,
+          (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
+           WHERE DateOfBusiness = '${today}'
+           AND DATEDIFF(HOUR, CAST(DateOfBusiness as datetime) + CAST(CAST(ISNULL(Hour, 0) as varchar) + ':' + CAST(ISNULL(Minute, 0) as varchar) as datetime), GETDATE()) <= 1) AS a) AS activeOrders,
+          (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
+           WHERE DateOfBusiness = '${today}'
+           AND DATEDIFF(HOUR, CAST(DateOfBusiness as datetime) + CAST(CAST(ISNULL(Hour, 0) as varchar) + ':' + CAST(ISNULL(Minute, 0) as varchar) as datetime), GETDATE()) <= 2
+           AND DATEDIFF(HOUR, CAST(DateOfBusiness as datetime) + CAST(CAST(ISNULL(Hour, 0) as varchar) + ':' + CAST(ISNULL(Minute, 0) as varchar) as datetime), GETDATE()) > 1) AS p) AS previousHourOrders
       `);
 
-    // Query for customer count from yesterday
-    const yesterdayCustomersResult = await pool.request()
-      .query(`
-        SELECT 
-          COUNT(DISTINCT CheckNumber) * 1.5 as guest_count
-        FROM 
-          dbo.DpvHstGndItem
-        WHERE 
-          DateOfBusiness = '${yesterday}'
-      `);
+    // Extract the data
+    const {
+      todaySales,
+      yesterdaySales,
+      todayCheckCount,
+      yesterdayCheckCount,
+      activeOrders,
+      previousHourOrders
+    } = result.recordset[0];
 
-    // Calculate trend percentages
-    const todaySales = todaySalesResult.recordset[0].daily_sales || 0;
-    const yesterdaySales = yesterdaySalesResult.recordset[0].daily_sales || 0;
-    const salesTrend = yesterdaySales > 0 
-      ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 
+    // Calculate metrics
+    const todayCustomers = Math.round(todayCheckCount * 1.5);
+    const yesterdayCustomers = Math.round(yesterdayCheckCount * 1.5);
+    
+    // Calculate trend percentages with safety checks
+    const salesTrend = (yesterdaySales > 0 && todaySales > 0)
+      ? Math.min(Math.max(((todaySales - yesterdaySales) / yesterdaySales) * 100, -99), 999) // Limit extreme values
       : 0;
     
-    const activeOrders = activeOrdersResult.recordset[0].active_orders || 0;
-    const previousHourOrders = previousHourOrdersResult.recordset[0].previous_hour_orders || 0;
-    const ordersTrend = previousHourOrders > 0 
-      ? ((activeOrders - previousHourOrders) / previousHourOrders) * 100 
+    const ordersTrend = (previousHourOrders > 0 && activeOrders > 0)
+      ? Math.min(Math.max(((activeOrders - previousHourOrders) / previousHourOrders) * 100, -99), 999)
       : 0;
     
-    const todayCustomers = todaySalesResult.recordset[0].guest_count || 0;
-    const yesterdayCustomers = yesterdayCustomersResult.recordset[0].guest_count || 0;
-    const customersTrend = yesterdayCustomers > 0 
-      ? ((todayCustomers - yesterdayCustomers) / yesterdayCustomers) * 100 
+    const customersTrend = (yesterdayCustomers > 0 && todayCustomers > 0)
+      ? Math.min(Math.max(((todayCustomers - yesterdayCustomers) / yesterdayCustomers) * 100, -99), 999)
       : 0;
 
-    res.json({
+    const response = {
       success: true,
       data: {
-        todaySales: todaySales,
+        todaySales: todaySales || 0,
         salesTrend: parseFloat(salesTrend.toFixed(1)),
-        activeOrders: activeOrders,
+        activeOrders: activeOrders || 0,
         ordersTrend: parseFloat(ordersTrend.toFixed(1)),
-        customers: Math.round(todayCustomers),
+        customers: todayCustomers || 0,
         customersTrend: parseFloat(customersTrend.toFixed(1)),
       }
-    });
+    };
+    
+    // Store in cache
+    global[CACHE_KEY] = {
+      timestamp: Date.now(),
+      data: response
+    };
+
+    res.json(response);
   } catch (err) {
     console.error('Sales summary query error:', err);
     res.status(500).json({
@@ -457,18 +440,18 @@ router.get('/sales-summary', async (req, res) => {
   }
 });
 
-// Get menu items statistics
+// Get menu items statistics - optimized
 router.get('/menu-stats', async (req, res) => {
   try {
     await pool.connect();
     
-    // Query to count unique menu items
+    // Optimized to use cached query plan and minimal data
     const menuItemsResult = await pool.request()
       .query(`
         SELECT 
-          COUNT(DISTINCT i.ItemId) as item_count
+          COUNT(DISTINCT ItemId) as item_count
         FROM 
-          dbo.Item i
+          dbo.Item WITH (NOLOCK)
       `);
 
     res.json({
@@ -487,23 +470,23 @@ router.get('/menu-stats', async (req, res) => {
   }
 });
 
-// Get sales by category for revenue breakdown
+// Get sales by category for revenue breakdown - optimized
 router.get('/category-sales', async (req, res) => {
   try {
     await pool.connect();
     
-    // Query for sales by category
+    // Optimized query with better performance characteristics
     const categorySalesResult = await pool.request()
       .query(`
-        SELECT 
+        SELECT TOP 10
           c.Name as category_name,
           SUM(i.Price * i.Quantity) as sales_amount
         FROM 
-          dbo.DpvHstGndItem i
+          dbo.DpvHstGndItem i WITH (NOLOCK)
         JOIN
-          dbo.Category c ON i.FKCategoryId = c.CategoryId
+          dbo.Category c WITH (NOLOCK) ON i.FKCategoryId = c.CategoryId
         WHERE
-          i.DateOfBusiness >= DATEADD(day, -30, GETDATE())
+          i.DateOfBusiness >= DATEADD(day, -7, GETDATE())
         GROUP BY
           c.Name
         ORDER BY
