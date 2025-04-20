@@ -34,6 +34,8 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
+  width: '100%',
+  minHeight: '400px', // Add minimum height to prevent layout shifts
 }));
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
@@ -102,7 +104,13 @@ const PopularItems: React.FC<PopularItemsProps> = ({
 
   return (
     <StyledCard>
-      <CardContent sx={{ padding: theme.spacing(2), flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ 
+        padding: theme.spacing(2), 
+        flexGrow: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%'
+      }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
             <Typography variant="h6" fontWeight="bold">
@@ -131,11 +139,18 @@ const PopularItems: React.FC<PopularItemsProps> = ({
         </Box>
 
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            py: 4,
+            minHeight: '300px', // Ensure consistent height during loading
+            alignItems: 'center',
+            width: '100%'
+          }}>
             <CircularProgress color="secondary" />
           </Box>
         ) : items.length > 0 ? (
-          <List disablePadding sx={{ flexGrow: 1 }}>
+          <List disablePadding sx={{ flexGrow: 1, width: '100%' }}>
             {items.map((item) => (
               <StyledListItem key={item.id} alignItems="flex-start">
                 <ListItemAvatar>
@@ -185,7 +200,14 @@ const PopularItems: React.FC<PopularItemsProps> = ({
             ))}
           </List>
         ) : (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            py: 4,
+            minHeight: '300px', // Ensure consistent height when empty
+            alignItems: 'center',
+            width: '100%'
+          }}>
             <Typography color="text.secondary">No popular items found</Typography>
           </Box>
         )}

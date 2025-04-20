@@ -32,6 +32,8 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
+  width: '100%',
+  minHeight: '400px', // Add minimum height to prevent layout shifts
 }));
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -100,7 +102,13 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
 
   return (
     <StyledCard>
-      <CardContent sx={{ padding: theme.spacing(2), flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ 
+        padding: theme.spacing(2), 
+        flexGrow: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%'
+      }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
             <Typography variant="h6" fontWeight="bold">
@@ -120,12 +128,29 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
         </Box>
 
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            py: 4,
+            minHeight: '300px', // Ensure consistent height during loading
+            alignItems: 'center',
+            width: '100%'
+          }}>
             <CircularProgress color="secondary" />
           </Box>
         ) : data.length > 0 ? (
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, height: '100%' }}>
-            <Box sx={{ flexBasis: '40%', height: 200, mt: 2 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', md: 'row' }, 
+            height: '100%',
+            width: '100%'
+          }}>
+            <Box sx={{ 
+              flexBasis: '40%', 
+              height: 200, 
+              mt: 2,
+              minWidth: '200px'
+            }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -155,8 +180,14 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
               </ResponsiveContainer>
             </Box>
 
-            <Box sx={{ flexBasis: '60%', flexGrow: 1, pl: { xs: 0, md: 3 }, mt: { xs: 3, md: 0 } }}>
-              <TableContainer>
+            <Box sx={{ 
+              flexBasis: '60%', 
+              flexGrow: 1, 
+              pl: { xs: 0, md: 3 }, 
+              mt: { xs: 3, md: 0 },
+              width: '100%'
+            }}>
+              <TableContainer sx={{ width: '100%' }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -211,7 +242,13 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
             </Box>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            py: 4,
+            minHeight: '300px', // Ensure consistent height when empty
+            alignItems: 'center' 
+          }}>
             <Typography color="text.secondary">No revenue data available</Typography>
           </Box>
         )}

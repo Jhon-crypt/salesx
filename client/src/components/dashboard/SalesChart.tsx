@@ -28,6 +28,8 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
+  width: '100%',
+  minHeight: '400px', // Add minimum height to prevent layout shifts
 }));
 
 // Helper function to generate random data - kept for fallback
@@ -127,7 +129,14 @@ const SalesChart: React.FC<SalesChartProps> = ({
 
   return (
     <StyledCard>
-      <CardContent sx={{ padding: theme.spacing(2), flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ 
+        padding: theme.spacing(2), 
+        flexGrow: 1, 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%'
+      }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
             <Typography variant="h6" fontWeight="bold">
@@ -171,7 +180,16 @@ const SalesChart: React.FC<SalesChartProps> = ({
             </Button>
           </ButtonGroup>
         </Box>
-        <Box sx={{ flexGrow: 1, width: '100%', height: 300, minHeight: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Box sx={{ 
+          flexGrow: 1, 
+          width: '100%', 
+          height: 300, 
+          minHeight: 250, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          position: 'relative'
+        }}>
           {loading ? (
             <CircularProgress color="secondary" />
           ) : data.length > 0 ? (

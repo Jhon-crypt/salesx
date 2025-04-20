@@ -35,6 +35,8 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
+  width: '100%',
+  minHeight: '400px', // Add minimum height to prevent layout shifts
 }));
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -123,7 +125,13 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
 
   return (
     <StyledCard>
-      <CardContent sx={{ padding: theme.spacing(2), flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ 
+        padding: theme.spacing(2), 
+        flexGrow: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%' 
+      }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
             <Typography variant="h6" fontWeight="bold">
@@ -152,11 +160,17 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
         </Box>
 
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            py: 4,
+            minHeight: '200px', // Ensure consistent height during loading
+            alignItems: 'center' 
+          }}>
             <CircularProgress color="secondary" />
           </Box>
         ) : orders.length > 0 ? (
-          <TableContainer sx={{ flexGrow: 1 }}>
+          <TableContainer sx={{ flexGrow: 1, width: '100%' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -234,7 +248,13 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
             </Table>
           </TableContainer>
         ) : (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            py: 4,
+            minHeight: '200px', // Ensure consistent height when empty
+            alignItems: 'center' 
+          }}>
             <Typography color="text.secondary">No orders found</Typography>
           </Box>
         )}

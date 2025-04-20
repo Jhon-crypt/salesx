@@ -91,7 +91,14 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
+    <Box sx={{ 
+      flexGrow: 1, 
+      minWidth: { xs: '100%', md: '960px' },
+      width: '100%',
+      maxWidth: '100%',
+      margin: '0 auto',
+      position: 'relative'
+    }}>
       {/* Page Header */}
       <Paper 
         elevation={0}
@@ -166,13 +173,19 @@ const Dashboard: React.FC = () => {
       </Paper>
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '50vh',
+          width: '100%'
+        }}>
           <CircularProgress color="secondary" />
         </Box>
       ) : (
         <>
           {/* Stats Cards */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3, width: '100%' }}>
             <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
               <StatsCard
                 title="Today's Sales"
@@ -216,7 +229,7 @@ const Dashboard: React.FC = () => {
           </Box>
 
           {/* Sales Chart */}
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 3, width: '100%' }}>
             <SalesChart
               title="Sales Overview"
               subtitle="Track your restaurant's sales performance over time"
@@ -224,7 +237,7 @@ const Dashboard: React.FC = () => {
           </Box>
 
           {/* Revenue Breakdown */}
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 3, width: '100%' }}>
             <RevenueBreakdown
               title="Revenue Breakdown"
               subtitle="Sales distribution by food category"
@@ -233,7 +246,7 @@ const Dashboard: React.FC = () => {
           </Box>
 
           {/* Orders and Popular Items */}
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3, width: '100%' }}>
             <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
               <RecentOrders
                 title="Recent Orders"
