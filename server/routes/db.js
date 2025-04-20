@@ -469,8 +469,6 @@ router.get('/menu-stats', async (req, res) => {
           COUNT(DISTINCT i.ItemId) as item_count
         FROM 
           dbo.Item i
-        WHERE
-          i.Active = 1
       `);
 
     res.json({
