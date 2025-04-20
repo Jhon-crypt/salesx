@@ -6,6 +6,7 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Transactions from './pages/Transactions';
 import { isAuthenticated, logoutUser, getUserData } from './utils/authUtils';
 
 // Authentication context with improved security
@@ -101,6 +102,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/sales/transactions" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Transactions />
                   </Layout>
                 </ProtectedRoute>
               } 
