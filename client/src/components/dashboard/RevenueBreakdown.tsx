@@ -22,6 +22,7 @@ import { dbApi, CategorySales } from '../../services/api';
 interface RevenueBreakdownProps {
   title: string;
   subtitle?: string;
+  preloadedData?: CategorySales[];
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -63,11 +64,18 @@ const formatCurrency = (value: number) => {
 const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
   title,
   subtitle,
+  preloadedData
 }) => {
   const theme = useTheme();
   
-  // Fetch category sales data from API
-  const { data: categorySales, isLoading, error } = useApi(() => dbApi.getCategorySales());
+  // Fetch category sales data from API only if not provided through props
+  const { data: fetchedCategorySales, isLoading, error } = useApi(
+    () => dbApi.getCategorySales(),
+    { skipFetch: !!preloadedData }
+  );
+  
+  // Use preloaded data if available, otherwise use fetched data
+  const categorySales = preloadedData || fetchedCategorySales;
 
   const RADIAN = Math.PI / 180;
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {

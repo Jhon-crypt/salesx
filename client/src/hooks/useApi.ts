@@ -4,6 +4,7 @@ interface UseApiOptions<T> {
   initialData?: T;
   deps?: any[];
   autoFetch?: boolean;
+  skipFetch?: boolean;
 }
 
 /**
@@ -16,13 +17,17 @@ const useApi = <T>(
   fetchFn: () => Promise<T>,
   options: UseApiOptions<T> = {}
 ) => {
-  const { initialData, deps = [], autoFetch = true } = options;
+  const { initialData, deps = [], autoFetch = true, skipFetch = false } = options;
   
   const [data, setData] = useState<T | undefined>(initialData);
-  const [isLoading, setIsLoading] = useState(autoFetch);
+  const [isLoading, setIsLoading] = useState(autoFetch && !skipFetch);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchData = async () => {
+    if (skipFetch) {
+      return data as T;
+    }
+    
     setIsLoading(true);
     setError(null);
     
@@ -41,11 +46,11 @@ const useApi = <T>(
   };
 
   useEffect(() => {
-    if (autoFetch) {
+    if (autoFetch && !skipFetch) {
       fetchData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [...deps, skipFetch]);
 
   return {
     data,

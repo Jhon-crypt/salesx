@@ -24,6 +24,7 @@ interface RecentOrdersProps {
   title: string;
   subtitle?: string;
   onViewAll?: () => void;
+  preloadedData?: TransactionItem[];
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -107,9 +108,16 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
   title,
   subtitle,
   onViewAll,
+  preloadedData
 }) => {
-  // Fetch transaction items from API
-  const { data: transactionItems, isLoading, error } = useApi(() => dbApi.getTransactionItems());
+  // Fetch transaction items from API only if not provided via props
+  const { data: fetchedTransactionItems, isLoading, error } = useApi(
+    () => dbApi.getTransactionItems(),
+    { skipFetch: !!preloadedData }
+  );
+  
+  // Use preloaded data if available, otherwise use fetched data
+  const transactionItems = preloadedData || fetchedTransactionItems;
   
   // Process transaction items into orders
   const orders = React.useMemo(() => {
