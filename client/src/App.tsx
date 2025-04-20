@@ -7,6 +7,9 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Transactions from './pages/Transactions';
+import VoidTransactions from './pages/VoidTransactions';
+import SalesReport from './pages/SalesReport';
+import MenuAnalysis from './pages/MenuAnalysis';
 import { isAuthenticated, logoutUser, getUserData } from './utils/authUtils';
 
 // Authentication context with improved security
@@ -117,11 +120,41 @@ function App() {
               } 
             />
             <Route 
+              path="/sales/void-transactions" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <VoidTransactions />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/sales/report" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SalesReport />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/sales/*" 
               element={
                 <ProtectedRoute>
                   <Layout>
                     <div>Sales pages coming soon</div>
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/menu/analysis" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <MenuAnalysis />
                   </Layout>
                 </ProtectedRoute>
               } 
