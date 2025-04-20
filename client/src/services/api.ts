@@ -62,6 +62,27 @@ export interface VoidTransaction {
   store_id: number;
 }
 
+// Add new interfaces for dashboard data
+export interface SalesSummary {
+  todaySales: number;
+  salesTrend: number;
+  activeOrders: number;
+  ordersTrend: number;
+  customers: number;
+  customersTrend: number;
+}
+
+export interface MenuStats {
+  menuItemCount: number;
+}
+
+export interface CategorySales {
+  name: string;
+  value: number;
+  color: string;
+  percentage: number;
+}
+
 // API functions for database endpoints
 export const dbApi = {
   // Test connection
@@ -116,7 +137,25 @@ export const dbApi = {
   getTableSampleData: async (tableName: string) => {
     const response = await api.get(`/db/sample-data/${tableName}`);
     return response.data.data;
-  }
+  },
+
+  // Get current sales summary for dashboard
+  getSalesSummary: async () => {
+    const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary');
+    return response.data.data;
+  },
+  
+  // Get menu items statistics
+  getMenuStats: async () => {
+    const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats');
+    return response.data.data;
+  },
+  
+  // Get sales by category for revenue breakdown
+  getCategorySales: async () => {
+    const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales');
+    return response.data.data;
+  },
 };
 
 export default api; 

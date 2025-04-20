@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Grid, Typography, Box, Breadcrumbs, Link, useTheme, Paper, Stack } from '@mui/material';
 import { format } from 'date-fns';
 import HomeIcon from '@mui/icons-material/Home';
@@ -15,44 +15,18 @@ import RecentOrders from '../components/dashboard/RecentOrders';
 import PopularItems from '../components/dashboard/PopularItems';
 import RevenueBreakdown from '../components/dashboard/RevenueBreakdown';
 
-// Revenue breakdown data
-const revenueCategories = [
-  {
-    name: 'Main Course',
-    value: 1423.50,
-    color: '#3f51b5',
-    percentage: 48,
-  },
-  {
-    name: 'Appetizers',
-    value: 567.25,
-    color: '#2196f3',
-    percentage: 19,
-  },
-  {
-    name: 'Desserts',
-    value: 389.75,
-    color: '#00bcd4',
-    percentage: 13,
-  },
-  {
-    name: 'Beverages',
-    value: 324.50,
-    color: '#4caf50',
-    percentage: 11,
-  },
-  {
-    name: 'Alcohol',
-    value: 273.50,
-    color: '#ff9800',
-    percentage: 9,
-  },
-];
+// API hooks
+import useApi from '../hooks/useApi';
+import { dbApi } from '../services/api';
 
 const Dashboard: React.FC = () => {
   const theme = useTheme();
   const today = format(new Date(), 'EEEE, MMMM d, yyyy');
-
+  
+  // Fetch dashboard data from API
+  const { data: salesSummary, isLoading: isLoadingSales } = useApi(() => dbApi.getSalesSummary());
+  const { data: menuStats, isLoading: isLoadingMenu } = useApi(() => dbApi.getMenuStats());
+  
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* Page Header */}
@@ -81,23 +55,32 @@ const Dashboard: React.FC = () => {
                 All your restaurant metrics in one place
               </Typography>
             </Box>
-            <Box sx={{ 
-              py: 0.5, 
-              px: 2, 
-              borderRadius: 2, 
-              backgroundColor: '#10b98120', 
-              display: 'flex', 
-              alignItems: 'center'
-            }}>
-              <ArrowUpwardIcon sx={{ color: theme.palette.success.main, fontSize: 16, mr: 1 }} />
-              <Typography 
-                variant="body2" 
-                color={theme.palette.success.main}
-                fontWeight="medium"
-              >
-                Sales Up 24% from last week
-              </Typography>
-            </Box>
+            {salesSummary?.salesTrend != null && (
+              <Box sx={{ 
+                py: 0.5, 
+                px: 2, 
+                borderRadius: 2, 
+                backgroundColor: salesSummary.salesTrend >= 0 ? '#10b98120' : '#f4433620', 
+                display: 'flex', 
+                alignItems: 'center'
+              }}>
+                <ArrowUpwardIcon 
+                  sx={{ 
+                    color: salesSummary.salesTrend >= 0 ? theme.palette.success.main : theme.palette.error.main, 
+                    fontSize: 16, 
+                    mr: 1,
+                    transform: salesSummary.salesTrend < 0 ? 'rotate(180deg)' : 'none'
+                  }} 
+                />
+                <Typography 
+                  variant="body2" 
+                  color={salesSummary.salesTrend >= 0 ? theme.palette.success.main : theme.palette.error.main}
+                  fontWeight="medium"
+                >
+                  Sales {salesSummary.salesTrend >= 0 ? 'Up' : 'Down'} {Math.abs(salesSummary.salesTrend)}% from last week
+                </Typography>
+              </Box>
+            )}
           </Box>
           
           <Breadcrumbs aria-label="breadcrumb">
@@ -126,9 +109,9 @@ const Dashboard: React.FC = () => {
         <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Today's Sales"
-            value={2897.50}
+            value={salesSummary?.todaySales || 0}
             prefix="$"
-            trend={12.5}
+            trend={salesSummary?.salesTrend}
             trendLabel="vs Yesterday"
             icon={<ReceiptIcon />}
             color="primary"
@@ -137,8 +120,8 @@ const Dashboard: React.FC = () => {
         <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Active Orders"
-            value={37}
-            trend={-5.3}
+            value={salesSummary?.activeOrders || 0}
+            trend={salesSummary?.ordersTrend}
             trendLabel="vs Last Hour"
             icon={<ShoppingCartIcon />}
             color="secondary"
@@ -147,8 +130,8 @@ const Dashboard: React.FC = () => {
         <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Customers"
-            value={158}
-            trend={8.1}
+            value={salesSummary?.customers || 0}
+            trend={salesSummary?.customersTrend}
             trendLabel="vs Yesterday"
             icon={<GroupIcon />}
             color="success"
@@ -157,7 +140,7 @@ const Dashboard: React.FC = () => {
         <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
           <StatsCard
             title="Menu Items"
-            value={84}
+            value={menuStats?.menuItemCount || 0}
             suffix="items"
             icon={<StoreIcon />}
             color="warning"
@@ -178,7 +161,6 @@ const Dashboard: React.FC = () => {
         <RevenueBreakdown
           title="Revenue Breakdown"
           subtitle="Sales distribution by food category"
-          data={revenueCategories}
         />
       </Box>
 

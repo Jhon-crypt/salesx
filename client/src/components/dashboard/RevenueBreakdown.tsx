@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   Card, 
   CardContent, 
@@ -16,24 +16,18 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import apiService from '../../services/apiService';
-import { RevenueBreakdownData, transformRevenueBreakdown } from '../../utils/dataTransformers';
-
-// We can use the interface from dataTransformers
-type RevenueCategory = RevenueBreakdownData;
+import useApi from '../../hooks/useApi';
+import { dbApi, CategorySales } from '../../services/api';
 
 interface RevenueBreakdownProps {
   title: string;
   subtitle?: string;
-  data?: RevenueCategory[]; // Make optional to support both prop-based and API-fetched data
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  width: '100%',
-  minHeight: '400px', // Add minimum height to prevent layout shifts
 }));
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -56,118 +50,88 @@ const StyledLinearProgress = styled(LinearProgress)(({ theme }) => ({
   width: '100%',
 }));
 
+// Format currency value to proper string
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
 const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
   title,
   subtitle,
-  data: propData,
 }) => {
   const theme = useTheme();
-  const [data, setData] = useState<RevenueCategory[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch category sales data from API
+  const { data: categorySales, isLoading, error } = useApi(() => dbApi.getCategorySales());
 
-  useEffect(() => {
-    // If data is provided via props, use that
-    if (propData && propData.length > 0) {
-      setData(propData);
-      return;
-    }
+  const RADIAN = Math.PI / 180;
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-    // Otherwise fetch from API
-    const fetchRevenueData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const itemSalesData = await apiService.getItemSales();
-        if (itemSalesData && itemSalesData.length > 0) {
-          const revenueData = transformRevenueBreakdown(itemSalesData);
-          setData(revenueData);
-        } else {
-          setError('No revenue data available');
-        }
-      } catch (err) {
-        console.error('Error fetching revenue data:', err);
-        setError('Could not load revenue data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRevenueData();
-  }, [propData]);
-
-  const formatCurrency = (value: number): string => {
-    return `$${value.toFixed(2)}`;
+    return (
+      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
   };
 
   return (
     <StyledCard>
-      <CardContent sx={{ 
-        padding: theme.spacing(2), 
-        flexGrow: 1, 
-        display: 'flex', 
-        flexDirection: 'column',
-        width: '100%'
-      }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box>
-            <Typography variant="h6" fontWeight="bold">
-              {title}
-            </Typography>
-            {subtitle && (
-              <Typography variant="body2" color="text.secondary">
-                {subtitle}
-              </Typography>
-            )}
-            {error && (
-              <Typography variant="caption" color="error">
-                {error}
-              </Typography>
-            )}
-          </Box>
-        </Box>
+      <CardContent sx={{ padding: 3, flexGrow: 1 }}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {subtitle}
+          </Typography>
+        )}
 
-        {loading ? (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            py: 4,
-            minHeight: '300px', // Ensure consistent height during loading
-            alignItems: 'center',
-            width: '100%'
-          }}>
-            <CircularProgress color="secondary" />
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+            <CircularProgress />
           </Box>
-        ) : data.length > 0 ? (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: { xs: 'column', md: 'row' }, 
-            height: '100%',
-            width: '100%'
-          }}>
+        ) : error ? (
+          <Typography color="error">
+            Error loading category sales data: {error.message}
+          </Typography>
+        ) : categorySales?.length === 0 ? (
+          <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
+            No revenue breakdown data available
+          </Typography>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
             <Box sx={{ 
               flexBasis: '40%', 
-              height: 200, 
-              mt: 2,
-              minWidth: '200px'
+              display: 'flex', 
+              justifyContent: 'center', 
+              mb: { xs: 3, md: 0 } 
             }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie
-                    data={data}
+                    data={categorySales}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={2}
+                    labelLine={false}
+                    label={renderCustomizedLabel}
+                    outerRadius={100}
+                    fill="#8884d8"
                     dataKey="value"
                   >
-                    {data.map((entry, index) => (
+                    {categorySales?.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(value: number) => [`${formatCurrency(value)}`, 'Revenue']} 
+                    formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                     contentStyle={{
                       backgroundColor: theme.palette.background.paper,
                       border: `1px solid ${theme.palette.divider}`,
@@ -175,19 +139,17 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
                       boxShadow: theme.shadows[3],
                     }}
                   />
-                  <Legend />
+                  <Legend 
+                    formatter={(value, entry, index) => {
+                      return <span style={{ color: theme.palette.text.primary }}>{value}</span>;
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </Box>
 
-            <Box sx={{ 
-              flexBasis: '60%', 
-              flexGrow: 1, 
-              pl: { xs: 0, md: 3 }, 
-              mt: { xs: 3, md: 0 },
-              width: '100%'
-            }}>
-              <TableContainer sx={{ width: '100%' }}>
+            <Box sx={{ flexBasis: '60%', flexGrow: 1, pl: { xs: 0, md: 3 }, mt: { xs: 3, md: 0 } }}>
+              <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -197,7 +159,7 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {data.map((category, index) => (
+                    {categorySales?.map((category, index) => (
                       <TableRow key={index} hover>
                         <StyledTableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -220,18 +182,24 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
                             {formatCurrency(category.value)}
                           </Typography>
                         </StyledTableCell>
-                        <StyledTableCell sx={{ width: '40%' }}>
+                        <StyledTableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <Box sx={{ width: '100%', mr: 1 }}>
                               <StyledLinearProgress
                                 variant="determinate"
                                 value={category.percentage}
-                                sx={{ bgcolor: theme.palette.background.default, '& .MuiLinearProgress-bar': { bgcolor: category.color } }}
+                                sx={{
+                                  '& .MuiLinearProgress-bar': {
+                                    backgroundColor: category.color,
+                                  },
+                                }}
                               />
                             </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 35 }}>
-                              {category.percentage}%
-                            </Typography>
+                            <Box sx={{ minWidth: 35 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                {category.percentage}%
+                              </Typography>
+                            </Box>
                           </Box>
                         </StyledTableCell>
                       </TableRow>
@@ -240,16 +208,6 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
                 </Table>
               </TableContainer>
             </Box>
-          </Box>
-        ) : (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            py: 4,
-            minHeight: '300px', // Ensure consistent height when empty
-            alignItems: 'center' 
-          }}>
-            <Typography color="text.secondary">No revenue data available</Typography>
           </Box>
         )}
       </CardContent>
