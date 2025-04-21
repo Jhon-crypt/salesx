@@ -12,7 +12,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "restart": "pkill -f 'node.*server/server.js' || true && pkill -f 'node.*vite' || true && npm run dev",
     "install-client": "cd client && npm install --include=dev",
-    "build": "cd client && npm run build",
+    "build": "cd client && npm run build:prod",
     "heroku-postbuild": "npm run install-client && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
