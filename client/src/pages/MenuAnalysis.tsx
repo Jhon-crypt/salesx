@@ -119,7 +119,6 @@ interface ProcessedItemSale {
   store: string;
   quantity: number;
   sales: number;
-  avgPrice: number;
   performance: 'high' | 'medium' | 'low';
   date: string;
 }
@@ -173,7 +172,6 @@ const MenuAnalysis: React.FC = () => {
         store: item.store_name || `Store ${item.store_id}`,
         quantity: item.quantity_sold,
         sales: item.sales_amount,
-        avgPrice: item.sales_amount / Math.max(item.quantity_sold, 1),
         performance,
         date: item.sale_date
       };
@@ -206,8 +204,6 @@ const MenuAnalysis: React.FC = () => {
           return a.name.localeCompare(b.name);
         case 'quantity':
           return b.quantity - a.quantity;
-        case 'price':
-          return b.avgPrice - a.avgPrice;
         case 'sales':
         default:
           return b.sales - a.sales;
@@ -347,7 +343,6 @@ const MenuAnalysis: React.FC = () => {
               <MenuItem value="sales">Sales Amount</MenuItem>
               <MenuItem value="quantity">Quantity Sold</MenuItem>
               <MenuItem value="name">Item Name</MenuItem>
-              <MenuItem value="avgPrice">Average Price</MenuItem>
             </TextField>
             <TextField
               select
@@ -446,7 +441,6 @@ const MenuAnalysis: React.FC = () => {
                     <TableCell>Store</TableCell>
                     <TableCell align="right">Quantity Sold</TableCell>
                     <TableCell align="right">Total Sales</TableCell>
-                    <TableCell align="right">Avg. Price</TableCell>
                     <TableCell>Performance</TableCell>
                   </TableRow>
                 </TableHead>
@@ -457,7 +451,6 @@ const MenuAnalysis: React.FC = () => {
                       <TableCell>{item.store}</TableCell>
                       <TableCell align="right">{item.quantity}</TableCell>
                       <TableCell align="right">${item.sales.toFixed(2)}</TableCell>
-                      <TableCell align="right">${item.avgPrice.toFixed(2)}</TableCell>
                       <TableCell>
                         <PerformanceChip
                           label={item.performance === 'high' ? 'High' : item.performance === 'medium' ? 'Medium' : 'Low'}

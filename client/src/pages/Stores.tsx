@@ -237,46 +237,35 @@ const Stores: React.FC = () => {
                   <TableCell align="right">Daily Sales</TableCell>
                   <TableCell align="right">Transactions</TableCell>
                   <TableCell align="right">Customers</TableCell>
-                  <TableCell align="right">Avg. Transaction</TableCell>
                   <TableCell align="right">Last Updated</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {paginatedStores.map((store) => {
-                  // Calculate metrics
-                  const avgTransaction = store.check_count && store.check_count > 0
-                    ? (store.daily_sales || 0) / store.check_count
-                    : 0;
-                  
-                  return (
-                    <TableRow key={store.store_id} hover>
-                      <TableCell>#{store.store_id}</TableCell>
-                      <TableCell>{store.store_name}</TableCell>
-                      <TableCell align="right">
-                        ${store.daily_sales?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-                      </TableCell>
-                      <TableCell align="right">
-                        {store.check_count?.toLocaleString() || '0'}
-                      </TableCell>
-                      <TableCell align="right">
-                        {store.guest_count?.toLocaleString() || '0'}
-                      </TableCell>
-                      <TableCell align="right">
-                        ${avgTransaction.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell align="right">
-                        {store.transaction_date 
-                          ? new Date(store.transaction_date).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'short', 
-                              day: 'numeric' 
-                            })
-                          : 'N/A'
-                        }
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {paginatedStores.map((store) => (
+                  <TableRow key={store.store_id} hover>
+                    <TableCell>#{store.store_id}</TableCell>
+                    <TableCell>{store.store_name}</TableCell>
+                    <TableCell align="right">
+                      ${store.daily_sales?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </TableCell>
+                    <TableCell align="right">
+                      {store.check_count?.toLocaleString() || '0'}
+                    </TableCell>
+                    <TableCell align="right">
+                      {store.guest_count?.toLocaleString() || '0'}
+                    </TableCell>
+                    <TableCell align="right">
+                      {store.transaction_date 
+                        ? new Date(store.transaction_date).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })
+                        : 'N/A'
+                      }
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>

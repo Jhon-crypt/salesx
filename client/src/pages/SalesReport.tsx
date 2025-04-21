@@ -308,7 +308,7 @@ const SalesReport: React.FC = () => {
 
       {/* Summary Stats */}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
-        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
+        <StatCard sx={{ flex: '1 1 calc(33% - 16px)', minWidth: 200 }}>
           <CardContent>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Total Sales
@@ -320,7 +320,7 @@ const SalesReport: React.FC = () => {
           </CardContent>
         </StatCard>
 
-        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
+        <StatCard sx={{ flex: '1 1 calc(33% - 16px)', minWidth: 200 }}>
           <CardContent>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Total Orders
@@ -332,18 +332,7 @@ const SalesReport: React.FC = () => {
           </CardContent>
         </StatCard>
 
-        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
-          <CardContent>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Avg. Order Value
-            </Typography>
-            <Typography variant="h4" fontWeight="bold">
-              ${avgOrderValue.toLocaleString('en-US', { maximumFractionDigits: 2 })}
-            </Typography>
-          </CardContent>
-        </StatCard>
-
-        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
+        <StatCard sx={{ flex: '1 1 calc(33% - 16px)', minWidth: 200 }}>
           <CardContent>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Total Customers
@@ -509,28 +498,20 @@ const SalesReport: React.FC = () => {
                     <TableCell align="right">Sales</TableCell>
                     <TableCell align="right">Orders</TableCell>
                     <TableCell align="right">Customers</TableCell>
-                    <TableCell align="right">Avg. Order Value</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredData.map((item, index) => {
-                    const avgOrderValue = item.check_count > 0 
-                      ? item.daily_sales / item.check_count 
-                      : 0;
-                    
-                    return (
-                      <TableRow key={`${item.store_id}-${item.transaction_date}-${index}`} hover>
-                        <TableCell>
-                          {format(new Date(item.transaction_date), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>{item.store_name || `Store ${item.store_id}`}</TableCell>
-                        <TableCell align="right">${item.daily_sales.toFixed(2)}</TableCell>
-                        <TableCell align="right">{item.check_count}</TableCell>
-                        <TableCell align="right">{item.guest_count}</TableCell>
-                        <TableCell align="right">${avgOrderValue.toFixed(2)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {filteredData.map((item, index) => (
+                    <TableRow key={`${item.store_id}-${item.transaction_date}-${index}`} hover>
+                      <TableCell>
+                        {format(new Date(item.transaction_date), 'MMM dd, yyyy')}
+                      </TableCell>
+                      <TableCell>{item.store_name || `Store ${item.store_id}`}</TableCell>
+                      <TableCell align="right">${item.daily_sales.toFixed(2)}</TableCell>
+                      <TableCell align="right">{item.check_count}</TableCell>
+                      <TableCell align="right">{item.guest_count}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </TableContainer>
