@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server/server.js",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   },
   "scripts": {
     "start": "node server/server.js",
@@ -11,7 +11,7 @@
     "client": "cd client && npm run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "restart": "pkill -f 'node.*server/server.js' || true && pkill -f 'node.*vite' || true && npm run dev",
-    "install-client": "cd client && npm install",
+    "install-client": "cd client && npm install --include=dev",
     "build": "cd client && npm run build",
     "heroku-postbuild": "npm run install-client && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
