@@ -20,7 +20,11 @@ import {
   Button,
   IconButton,
   Tooltip,
-  Chip
+  Chip,
+  Stack,
+  Breadcrumbs,
+  Link,
+  useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { 
@@ -42,6 +46,9 @@ import StarIcon from '@mui/icons-material/Star';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DownloadIcon from '@mui/icons-material/Download';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import HomeIcon from '@mui/icons-material/Home';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import BarChartIcon from '@mui/icons-material/BarChart';
 import useApi from '../hooks/useApi';
 import { dbApi, ItemSalesData, CategorySales } from '../services/api';
 
@@ -118,6 +125,7 @@ interface ProcessedItemSale {
 }
 
 const MenuAnalysis: React.FC = () => {
+  const theme = useTheme();
   // State for filters and data display
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('sales');
@@ -248,34 +256,79 @@ const MenuAnalysis: React.FC = () => {
   const hasError = itemsError || categoriesError;
   
   return (
-    <Box sx={{ padding: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box>
-          <Typography variant="h4" sx={{ mb: 1, fontWeight: 'bold' }}>
-            Menu Analysis
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Track menu performance metrics and optimize your offerings
-          </Typography>
-        </Box>
-        <Button 
-          variant="outlined" 
-          startIcon={<DownloadIcon />}
-          onClick={handleExport}
-        >
-          Export Data
-        </Button>
-      </Box>
-      
-      {/* Filters Card */}
+    <Box sx={{ flexGrow: 1 }}>
+      {/* Page Header */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          mb: 3, 
+          p: 3, 
+          borderRadius: 2,
+          background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
+          border: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h4" fontWeight="bold" sx={{ 
+                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                letterSpacing: '-0.02em',
+              }}>
+                Menu Analysis
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                Track performance of menu items across stores
+              </Typography>
+            </Box>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              startIcon={<DownloadIcon />}
+              onClick={handleExport}
+            >
+              Export Data
+            </Button>
+          </Box>
+          
+          <Breadcrumbs aria-label="breadcrumb">
+            <Link
+              underline="hover"
+              color="inherit"
+              href="/dashboard"
+              sx={{ display: 'flex', alignItems: 'center' }}
+            >
+              <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Home
+            </Link>
+            <Link
+              underline="hover"
+              color="inherit"
+              href="/menu"
+              sx={{ display: 'flex', alignItems: 'center' }}
+            >
+              <MenuBookIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Menu
+            </Link>
+            <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+              <BarChartIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Menu Analysis
+            </Typography>
+          </Breadcrumbs>
+        </Stack>
+      </Paper>
+
+      {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             <TextField
-              label="Search Items"
+              placeholder="Search menu items..."
               value={searchTerm}
               onChange={handleSearchChange}
-              sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: '220px' } }}
+              sx={{ flex: 1, minWidth: 200 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -284,33 +337,24 @@ const MenuAnalysis: React.FC = () => {
                 ),
               }}
             />
-            
             <TextField
               select
               label="Sort By"
               value={sortBy}
               onChange={handleSortChange}
-              sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <FilterListIcon />
-                  </InputAdornment>
-                ),
-              }}
+              sx={{ flex: 1, minWidth: 150 }}
             >
-              <MenuItem value="sales">Sales (High to Low)</MenuItem>
-              <MenuItem value="quantity">Quantity (High to Low)</MenuItem>
-              <MenuItem value="price">Price (High to Low)</MenuItem>
-              <MenuItem value="name">Name (A to Z)</MenuItem>
+              <MenuItem value="sales">Sales Amount</MenuItem>
+              <MenuItem value="quantity">Quantity Sold</MenuItem>
+              <MenuItem value="name">Item Name</MenuItem>
+              <MenuItem value="avgPrice">Average Price</MenuItem>
             </TextField>
-            
             <TextField
               select
               label="Store"
               value={storeFilter}
               onChange={handleStoreFilterChange}
-              sx={{ minWidth: { xs: '100%', sm: '200px' } }}
+              sx={{ flex: 1, minWidth: 150 }}
             >
               <MenuItem value="all">All Stores</MenuItem>
               {uniqueStores.map((store) => (
@@ -322,7 +366,16 @@ const MenuAnalysis: React.FC = () => {
           </Box>
         </CardContent>
       </Card>
-      
+
+      {/* Content Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs value={activeTab} onChange={handleTabChange} aria-label="menu analysis tabs">
+          <Tab label="Item Performance" {...a11yProps(0)} />
+          <Tab label="Category Analysis" {...a11yProps(1)} />
+          <Tab label="Sales Trends" {...a11yProps(2)} />
+        </Tabs>
+      </Box>
+
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
           <CircularProgress />
@@ -384,15 +437,6 @@ const MenuAnalysis: React.FC = () => {
           </Box>
           
           {/* Tabs */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={activeTab} onChange={handleTabChange} aria-label="menu analysis tabs">
-              <Tab label="Menu Items" {...a11yProps(0)} />
-              <Tab label="Category Analysis" {...a11yProps(1)} />
-              <Tab label="Performance Charts" {...a11yProps(2)} />
-            </Tabs>
-          </Box>
-          
-          {/* Menu Items Tab */}
           <TabPanel value={activeTab} index={0}>
             <TableContainer component={Paper}>
               <Table>

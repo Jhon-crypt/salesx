@@ -16,9 +16,12 @@ import {
   CircularProgress,
   Pagination,
   InputAdornment,
-  Grid,
   IconButton,
-  Tooltip
+  Tooltip,
+  Stack,
+  Breadcrumbs,
+  Link,
+  useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
@@ -27,6 +30,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import MoneyIcon from '@mui/icons-material/AttachMoney';
 import InfoIcon from '@mui/icons-material/Info';
+import HomeIcon from '@mui/icons-material/Home';
 import useApi from '../hooks/useApi';
 import { dbApi, StoreInfo } from '../services/api';
 
@@ -45,6 +49,7 @@ const StoreInfoCard = styled(Card)(({ theme }) => ({
 }));
 
 const Stores: React.FC = () => {
+  const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [filteredStores, setFilteredStores] = useState<StoreInfo[]>([]);
@@ -99,14 +104,52 @@ const Stores: React.FC = () => {
   const totalCustomers = filteredStores.reduce((sum, store) => sum + (store.guest_count || 0), 0);
 
   return (
-    <Box sx={{ padding: 3 }}>
-      <Typography variant="h4" sx={{ mb: 1, fontWeight: 'bold' }}>
-        Store Management
-      </Typography>
-      
-      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-        View and analyze performance across all store locations
-      </Typography>
+    <Box sx={{ flexGrow: 1 }}>
+      {/* Page Header */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          mb: 3, 
+          p: 3, 
+          borderRadius: 2,
+          background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
+          border: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h4" fontWeight="bold" sx={{ 
+                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                letterSpacing: '-0.02em',
+              }}>
+                Store Management
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                View and analyze performance across all store locations
+              </Typography>
+            </Box>
+          </Box>
+          
+          <Breadcrumbs aria-label="breadcrumb">
+            <Link
+              underline="hover"
+              color="inherit"
+              href="/dashboard"
+              sx={{ display: 'flex', alignItems: 'center' }}
+            >
+              <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Home
+            </Link>
+            <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+              <StorefrontIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Stores
+            </Typography>
+          </Breadcrumbs>
+        </Stack>
+      </Paper>
       
       {/* Summary Cards */}
       <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 3, mb: 3 }}>

@@ -22,13 +22,19 @@ import {
   InputAdornment,
   Chip,
   IconButton,
-  Tooltip
+  Tooltip,
+  Stack,
+  Breadcrumbs,
+  Link,
+  useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { format } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import InfoIcon from '@mui/icons-material/Info';
 import CancelIcon from '@mui/icons-material/Cancel';
+import HomeIcon from '@mui/icons-material/Home';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 import useApi from '../hooks/useApi';
 import { dbApi, VoidTransaction } from '../services/api';
 
@@ -67,6 +73,7 @@ const ReasonChip = styled(Chip)(() => ({
 }));
 
 const VoidTransactions: React.FC = () => {
+  const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [reasonFilter, setReasonFilter] = useState('all');
   const [page, setPage] = useState(1);
@@ -161,28 +168,72 @@ const VoidTransactions: React.FC = () => {
   );
 
   return (
-    <Box sx={{ padding: 3 }}>
-      <Typography variant="h4" sx={{ mb: 1, fontWeight: 'bold' }}>
-        Void Transactions
-      </Typography>
-      
-      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-        Monitor and analyze voided sales
-      </Typography>
-      
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Card sx={{ p: 2, display: 'inline-flex', alignItems: 'center' }}>
-          <CancelIcon sx={{ color: 'error.main', mr: 1, fontSize: 30 }} />
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Total Voided
-            </Typography>
-            <Typography variant="h6" fontWeight="bold">
-              ${totalVoided.toFixed(2)}
-            </Typography>
+    <Box sx={{ flexGrow: 1 }}>
+      {/* Page Header */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          mb: 3, 
+          p: 3, 
+          borderRadius: 2,
+          background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
+          border: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h4" fontWeight="bold" sx={{ 
+                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                letterSpacing: '-0.02em',
+              }}>
+                Void Transactions
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                Monitor and analyze voided sales
+              </Typography>
+            </Box>
+            <Card sx={{ p: 2, display: 'inline-flex', alignItems: 'center' }}>
+              <CancelIcon sx={{ color: 'error.main', mr: 1, fontSize: 30 }} />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Total Voided
+                </Typography>
+                <Typography variant="h6" fontWeight="bold">
+                  ${totalVoided.toFixed(2)}
+                </Typography>
+              </Box>
+            </Card>
           </Box>
-        </Card>
-      </Box>
+          
+          <Breadcrumbs aria-label="breadcrumb">
+            <Link
+              underline="hover"
+              color="inherit"
+              href="/dashboard"
+              sx={{ display: 'flex', alignItems: 'center' }}
+            >
+              <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Home
+            </Link>
+            <Link
+              underline="hover"
+              color="inherit"
+              href="/sales/transactions"
+              sx={{ display: 'flex', alignItems: 'center' }}
+            >
+              <ReceiptIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Transactions
+            </Link>
+            <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+              <CancelIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Void Transactions
+            </Typography>
+          </Breadcrumbs>
+        </Stack>
+      </Paper>
       
       <Card sx={{ mb: 3 }}>
         <CardContent>

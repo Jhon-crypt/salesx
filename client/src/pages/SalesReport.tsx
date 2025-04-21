@@ -18,7 +18,11 @@ import {
   InputAdornment,
   Divider,
   Tabs,
-  Tab
+  Tab,
+  Stack,
+  Breadcrumbs,
+  Link,
+  useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { format, subDays, parse, isValid } from 'date-fns';
@@ -26,6 +30,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import DownloadIcon from '@mui/icons-material/Download';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import HomeIcon from '@mui/icons-material/Home';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import { 
   LineChart, 
   Line, 
@@ -98,6 +104,7 @@ const TrendIndicator = ({ value }: { value: number }) => {
 };
 
 const SalesReport: React.FC = () => {
+  const theme = useTheme();
   // State for filters and data display
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -244,41 +251,137 @@ const SalesReport: React.FC = () => {
   };
   
   return (
-    <Box sx={{ padding: 3 }}>
-      <Typography variant="h4" sx={{ mb: 1, fontWeight: 'bold' }}>
-        Sales Report
-      </Typography>
-      
-      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-        Analyze sales performance trends
-      </Typography>
-      
-      {/* Filters Card */}
+    <Box sx={{ flexGrow: 1 }}>
+      {/* Page Header */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          mb: 3, 
+          p: 3, 
+          borderRadius: 2,
+          background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
+          border: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h4" fontWeight="bold" sx={{ 
+                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                letterSpacing: '-0.02em',
+              }}>
+                Sales Report
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                Analyze sales performance across time periods and stores
+              </Typography>
+            </Box>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              startIcon={<DownloadIcon />}
+              onClick={handleExport}
+            >
+              Export Data
+            </Button>
+          </Box>
+          
+          <Breadcrumbs aria-label="breadcrumb">
+            <Link
+              underline="hover"
+              color="inherit"
+              href="/dashboard"
+              sx={{ display: 'flex', alignItems: 'center' }}
+            >
+              <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Home
+            </Link>
+            <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+              <AssessmentIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+              Sales Report
+            </Typography>
+          </Breadcrumbs>
+        </Stack>
+      </Paper>
+
+      {/* Summary Stats */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
+        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Total Sales
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              ${totalSales.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </Typography>
+            {salesTrend !== 0 && <TrendIndicator value={salesTrend} />}
+          </CardContent>
+        </StatCard>
+
+        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Total Orders
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              {totalOrders.toLocaleString()}
+            </Typography>
+            {ordersCountTrend !== 0 && <TrendIndicator value={ordersCountTrend} />}
+          </CardContent>
+        </StatCard>
+
+        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Avg. Order Value
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              ${avgOrderValue.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </Typography>
+          </CardContent>
+        </StatCard>
+
+        <StatCard sx={{ flex: '1 1 calc(25% - 18px)', minWidth: 200 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Total Customers
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              {totalCustomers.toLocaleString()}
+            </Typography>
+            {customersCountTrend !== 0 && <TrendIndicator value={customersCountTrend} />}
+          </CardContent>
+        </StatCard>
+      </Box>
+
+      {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             <TextField
-              label="From Date"
+              label="Start Date"
               type="date"
               value={startDate}
               onChange={handleStartDateChange}
+              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
               InputLabelProps={{ shrink: true }}
-              fullWidth
             />
             <TextField
-              label="To Date"
+              label="End Date"
               type="date"
               value={endDate}
               onChange={handleEndDateChange}
+              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
               InputLabelProps={{ shrink: true }}
-              fullWidth
             />
             <TextField
               select
               label="Store"
               value={storeFilter}
               onChange={handleStoreFilterChange}
-              fullWidth
+              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
             >
               <MenuItem value="all">All Stores</MenuItem>
               {uniqueStores.map((store) => (
@@ -288,10 +391,10 @@ const SalesReport: React.FC = () => {
               ))}
             </TextField>
             <TextField
-              label="Search"
+              placeholder="Search..."
               value={searchTerm}
               onChange={handleSearchChange}
-              fullWidth
+              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -300,13 +403,6 @@ const SalesReport: React.FC = () => {
                 ),
               }}
             />
-            <Button 
-              variant="outlined" 
-              startIcon={<DownloadIcon />}
-              onClick={handleExport}
-            >
-              Export
-            </Button>
           </Box>
         </CardContent>
       </Card>
@@ -325,60 +421,6 @@ const SalesReport: React.FC = () => {
         </Typography>
       ) : (
         <>
-          {/* Summary Cards */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
-            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
-              <StatCard>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Total Sales
-                  </Typography>
-                  <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
-                    ${totalSales.toFixed(2)}
-                  </Typography>
-                  <TrendIndicator value={salesTrend} />
-                </CardContent>
-              </StatCard>
-            </Box>
-            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
-              <StatCard>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Average Daily Sales
-                  </Typography>
-                  <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
-                    ${avgDailySales.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </StatCard>
-            </Box>
-            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
-              <StatCard>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Total Orders
-                  </Typography>
-                  <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
-                    {totalOrders}
-                  </Typography>
-                  <TrendIndicator value={ordersCountTrend} />
-                </CardContent>
-              </StatCard>
-            </Box>
-            <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
-              <StatCard>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Average Order Value
-                  </Typography>
-                  <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
-                    ${avgOrderValue.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </StatCard>
-            </Box>
-          </Box>
-          
           {/* Tabs for different views */}
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={activeTab} onChange={handleTabChange} aria-label="sales report tabs">
