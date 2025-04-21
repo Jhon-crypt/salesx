@@ -61,7 +61,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server on localhost
-app.listen(PORT, 'localhost', (err) => {
+app.listen(PORT, (err) => {
   if (err) {
     console.error('Error starting server:', err);
     return;
