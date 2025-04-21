@@ -28,6 +28,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CancelIcon from '@mui/icons-material/Cancel';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 
 const DRAWER_WIDTH = 260;
 
@@ -93,6 +94,11 @@ const navItems: NavItem[] = [
         icon: <AssessmentIcon />,
       },
     ],
+  },
+  {
+    title: 'Stores',
+    path: '/stores',
+    icon: <StorefrontIcon />,
   },
   {
     title: 'Menu',

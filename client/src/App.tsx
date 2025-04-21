@@ -10,6 +10,7 @@ import Transactions from './pages/Transactions';
 import VoidTransactions from './pages/VoidTransactions';
 import SalesReport from './pages/SalesReport';
 import MenuAnalysis from './pages/MenuAnalysis';
+import Stores from './pages/Stores';
 import { isAuthenticated, logoutUser, getUserData } from './utils/authUtils';
 
 // Authentication context with improved security
@@ -135,6 +136,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <SalesReport />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/stores" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Stores />
                   </Layout>
                 </ProtectedRoute>
               } 

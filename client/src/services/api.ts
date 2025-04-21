@@ -83,6 +83,16 @@ export interface CategorySales {
   percentage: number;
 }
 
+export interface StoreInfo {
+  store_id: number;
+  store_name: string;
+  transaction_date?: string;
+  daily_sales?: number;
+  gross_sales?: number;
+  check_count?: number;
+  guest_count?: number;
+}
+
 // API functions for database endpoints
 export const dbApi = {
   // Test connection
@@ -101,6 +111,32 @@ export const dbApi = {
   getStoreSales: async () => {
     const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales');
     return response.data.data;
+  },
+
+  // Get unique store information from store sales data
+  getStores: async () => {
+    const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales');
+    // Extract unique stores from the data
+    const salesData = response.data.data;
+    const storeMap = new Map<number, StoreInfo>();
+    
+    // Process each record and keep the most recent data for each store
+    salesData.forEach(record => {
+      if (!storeMap.has(record.store_id)) {
+        storeMap.set(record.store_id, {
+          store_id: record.store_id,
+          store_name: record.store_name || `Store ${record.store_id}`,
+          transaction_date: record.transaction_date,
+          daily_sales: record.daily_sales,
+          gross_sales: record.gross_sales,
+          check_count: record.check_count,
+          guest_count: record.guest_count
+        });
+      }
+    });
+    
+    // Convert map values to array
+    return Array.from(storeMap.values());
   },
 
   // Get item sales data
