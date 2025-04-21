@@ -21,19 +21,13 @@ import { Link, useLocation } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import ReceiptIcon from '@mui/icons-material/Receipt';
-import PeopleIcon from '@mui/icons-material/People';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import TableRestaurantIcon from '@mui/icons-material/TableRestaurant';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import InsightsIcon from '@mui/icons-material/Insights';
-import SettingsIcon from '@mui/icons-material/Settings';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import MenuIcon from '@mui/icons-material/Menu';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CancelIcon from '@mui/icons-material/Cancel';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import CategoryIcon from '@mui/icons-material/Category';
 
 const DRAWER_WIDTH = 260;
 
@@ -84,11 +78,6 @@ const navItems: NavItem[] = [
     icon: <ReceiptIcon />,
     children: [
       {
-        title: 'Orders',
-        path: '/sales/orders',
-        icon: <ReceiptIcon />,
-      },
-      {
         title: 'Transactions',
         path: '/sales/transactions',
         icon: <ReceiptIcon />,
@@ -111,68 +100,11 @@ const navItems: NavItem[] = [
     icon: <MenuBookIcon />,
     children: [
       {
-        title: 'Categories',
-        path: '/menu/categories',
-        icon: <CategoryIcon />,
-      },
-      {
-        title: 'Items',
-        path: '/menu/items',
-        icon: <RestaurantIcon />,
-      },
-      {
-        title: 'Modifiers',
-        path: '/menu/modifiers',
-        icon: <MenuBookIcon />,
-      },
-      {
         title: 'Menu Analysis',
         path: '/menu/analysis',
         icon: <BarChartIcon />,
       },
     ],
-  },
-  {
-    title: 'Tables',
-    path: '/tables',
-    icon: <TableRestaurantIcon />,
-  },
-  {
-    title: 'Inventory',
-    path: '/inventory',
-    icon: <InventoryIcon />,
-  },
-  {
-    title: 'Customers',
-    path: '/customers',
-    icon: <PeopleIcon />,
-  },
-  {
-    title: 'Analytics',
-    path: '/analytics',
-    icon: <InsightsIcon />,
-    children: [
-      {
-        title: 'Sales Report',
-        path: '/analytics/sales',
-        icon: <InsightsIcon />,
-      },
-      {
-        title: 'Customer Insights',
-        path: '/analytics/customers',
-        icon: <InsightsIcon />,
-      },
-      {
-        title: 'Inventory Report',
-        path: '/analytics/inventory',
-        icon: <InsightsIcon />,
-      },
-    ],
-  },
-  {
-    title: 'Settings',
-    path: '/settings',
-    icon: <SettingsIcon />,
   },
 ];
 
