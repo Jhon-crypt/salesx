@@ -30,6 +30,10 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import MenuIcon from '@mui/icons-material/Menu';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import CancelIcon from '@mui/icons-material/Cancel';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import CategoryIcon from '@mui/icons-material/Category';
 
 const DRAWER_WIDTH = 260;
 
@@ -85,14 +89,19 @@ const navItems: NavItem[] = [
         icon: <ReceiptIcon />,
       },
       {
-        title: 'Invoices',
-        path: '/sales/invoices',
-        icon: <ReceiptIcon />,
-      },
-      {
         title: 'Transactions',
         path: '/sales/transactions',
         icon: <ReceiptIcon />,
+      },
+      {
+        title: 'Void Transactions',
+        path: '/sales/void-transactions',
+        icon: <CancelIcon />,
+      },
+      {
+        title: 'Sales Report',
+        path: '/sales/report',
+        icon: <AssessmentIcon />,
       },
     ],
   },
@@ -104,7 +113,7 @@ const navItems: NavItem[] = [
       {
         title: 'Categories',
         path: '/menu/categories',
-        icon: <MenuBookIcon />,
+        icon: <CategoryIcon />,
       },
       {
         title: 'Items',
@@ -115,6 +124,11 @@ const navItems: NavItem[] = [
         title: 'Modifiers',
         path: '/menu/modifiers',
         icon: <MenuBookIcon />,
+      },
+      {
+        title: 'Menu Analysis',
+        path: '/menu/analysis',
+        icon: <BarChartIcon />,
       },
     ],
   },
@@ -254,7 +268,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = "permanent" 
               {hasChildren && (
                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                   <List component="div" disablePadding>
-                    {item.children.map((child) => {
+                    {item.children?.map((child) => {
                       const isChildActive = isActive(child.path);
                       
                       return (
