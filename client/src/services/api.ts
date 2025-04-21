@@ -1,8 +1,26 @@
 import axios from 'axios';
 
+// Determine the appropriate base URL based on environment
+const getBaseUrl = () => {
+  // Check multiple conditions to determine if we're in production
+  const isProd = import.meta.env.PROD || 
+                 window.location.hostname.includes('herokuapp.com') ||
+                 window.location.hostname !== 'localhost';
+  
+  console.log('Environment:', isProd ? 'PRODUCTION' : 'DEVELOPMENT');
+  console.log('Hostname:', window.location.hostname);
+  
+  // Use relative URL in production, localhost in development
+  return isProd ? '/api' : 'http://localhost:5000/api';
+};
+
+// Log the chosen baseURL for debugging
+const baseURL = getBaseUrl();
+console.log('API baseURL:', baseURL);
+
 // Base API configuration
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL,
   timeout: 60000, // 60 seconds timeout for slow queries
   headers: {
     'Content-Type': 'application/json',
