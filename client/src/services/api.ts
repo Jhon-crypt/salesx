@@ -10,13 +10,9 @@ const getBaseUrl = () => {
     return envApiUrl;
   }
   
-  // Check if running on DigitalOcean or Heroku
-  const isDOorHeroku = window.location.hostname.includes('salesxyz') || 
-                      window.location.hostname.includes('herokuapp.com');
-  
   // Check multiple conditions to determine if we're in production
   const isProd = import.meta.env.PROD || 
-                 isDOorHeroku ||
+                 window.location.hostname.includes('herokuapp.com') ||
                  window.location.hostname !== 'localhost';
   
   console.log('Environment:', isProd ? 'PRODUCTION' : 'DEVELOPMENT');
@@ -27,10 +23,6 @@ const getBaseUrl = () => {
   
   // Use relative URL in production, localhost in development
   if (isProd) {
-    // If we're on DigitalOcean, use the full API URL
-    if (window.location.hostname.includes('salesxyz')) {
-      return 'https://salesxyz-b9f576c443d9.herokuapp.com/api';
-    }
     return '/api';
   } else {
     // In development, try to connect to the server on different ports
@@ -49,43 +41,19 @@ const api = axios.create({
   timeout: 60000, // 60 seconds timeout for slow queries
   headers: {
     'Content-Type': 'application/json',
-  },
-  // Add withCredentials if we're dealing with CORS
-  withCredentials: false
+  }
 });
 
-// Add response interceptor to detect server port issues and retry logic
+// Add response interceptor to detect server port issues
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error);
-    
-    // Specific error handling
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error('Error status:', error.response.status);
-      console.error('Error data:', error.response.data);
-      
-      // If we get a 503 Service Unavailable, the server might be starting up
-      if (error.response.status === 503) {
-        console.warn('Server is unavailable. It might be starting up.');
-      }
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('No response received:', error.request);
-      
-      // If we get a network error and we're in development, try other ports
-      if (error.message === 'Network Error' && 
-          !import.meta.env.PROD && 
-          window.location.hostname === 'localhost') {
-        console.warn('Network error occurred. Server might be running on a different port.');
-      }
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('Error message:', error.message);
+    // If we get a network error and we're in development, try other ports
+    if (error.message === 'Network Error' && 
+        !import.meta.env.PROD && 
+        window.location.hostname === 'localhost') {
+      console.warn('Network error occurred. Server might be running on a different port.');
     }
-    
     return Promise.reject(error);
   }
 );
@@ -183,21 +151,15 @@ export const dbApi = {
   },
   
   // Get simple sales data without joins
-  getSimpleSales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getSimpleSales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: SalesData[]}>('/db/simple-sales', { params });
     return response.data.data;
   },
 
   // Get store sales with store information
-  getStoreSales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getStoreSales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales', { params });
     return response.data.data;
   },
@@ -229,31 +191,22 @@ export const dbApi = {
   },
 
   // Get item sales data
-  getItemSales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getItemSales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: ItemSalesData[]}>('/db/item-sales', { params });
     return response.data.data;
   },
 
   // Get transaction items
-  getTransactionItems: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getTransactionItems: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
     return response.data.data;
   },
 
   // Get void transactions
-  getVoidTransactions: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getVoidTransactions: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: VoidTransaction[]}>('/db/void-transactions', { params });
     return response.data.data;
   },
@@ -277,31 +230,22 @@ export const dbApi = {
   },
 
   // Get current sales summary for dashboard
-  getSalesSummary: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getSalesSummary: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary', { params });
     return response.data.data;
   },
   
   // Get menu items statistics
-  getMenuStats: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getMenuStats: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats', { params });
     return response.data.data;
   },
   
   // Get sales by category for revenue breakdown
-  getCategorySales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getCategorySales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });
     return response.data.data;
   },

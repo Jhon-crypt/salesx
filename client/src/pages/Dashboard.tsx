@@ -6,7 +6,6 @@ import SalesChart from '../components/dashboard/SalesChart';
 import RevenueBreakdown from '../components/dashboard/RevenueBreakdown';
 import RecentOrders from '../components/dashboard/RecentOrders';
 import PopularItems from '../components/dashboard/PopularItems';
-import StoreSelector from '../components/common/StoreSelector';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import StoreIcon from '@mui/icons-material/Store';
@@ -26,8 +25,7 @@ const DashboardDataContext = React.createContext<{
   transactionItems: TransactionItem[] | null;
   itemSales: ItemSalesData[] | null;
   storeSales: SalesData[] | null;
-  selectedStoreId: number | null;
-  fetchDashboardData?: (date: string, storeId?: number | null) => void;
+  fetchDashboardData?: (date: string) => void;
 }>({
   salesSummary: null,
   menuStats: null,
@@ -35,7 +33,6 @@ const DashboardDataContext = React.createContext<{
   transactionItems: null,
   itemSales: null,
   storeSales: null,
-  selectedStoreId: null,
 });
 
 // Enhanced components that use data from context rather than fetching themselves
@@ -69,9 +66,6 @@ const DashboardContent: React.FC = () => {
 
   // State for date picker
   const [selectedDate, setSelectedDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
-  
-  // State for selected store
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
 
   // Get dashboard data from context
   const { 
@@ -79,13 +73,13 @@ const DashboardContent: React.FC = () => {
     fetchDashboardData
   } = useContext(DashboardDataContext);
 
-  // Fetch data when selected date or store changes
+  // Fetch data when selected date changes
   useEffect(() => {
-    console.log('Current selectedDate:', selectedDate, 'selectedStoreId:', selectedStoreId);
+    console.log('Current selectedDate:', selectedDate);
     if (fetchDashboardData) {
-      fetchDashboardData(selectedDate, selectedStoreId);
+      fetchDashboardData(selectedDate);
     }
-  }, [selectedDate, selectedStoreId, fetchDashboardData]);
+  }, [selectedDate, fetchDashboardData]);
   
   const theme = useTheme();
   
@@ -94,38 +88,38 @@ const DashboardContent: React.FC = () => {
   
   // Log for debugging
   useEffect(() => {
-    console.log('Dashboard rendering with date:', selectedDate, 'store:', selectedStoreId);
-  }, [selectedDate, selectedStoreId]);
+    console.log('Dashboard rendering with date:', selectedDate);
+  }, [selectedDate]);
   
   // Fetch all dashboard data in parallel at component mount
   const { data: salesSummaryData } = useApi(
-    () => dbApi.getSalesSummary(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getSalesSummary(selectedDate),
+    { deps: [selectedDate] }
   );
   
   const { data: menuStatsData } = useApi(
-    () => dbApi.getMenuStats(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getMenuStats(selectedDate),
+    { deps: [selectedDate] }
   );
   
   const { data: categorySalesData } = useApi(
-    () => dbApi.getCategorySales(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getCategorySales(selectedDate),
+    { deps: [selectedDate] }
   );
   
   const { data: transactionItemsData } = useApi(
-    () => dbApi.getTransactionItems(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getTransactionItems(selectedDate),
+    { deps: [selectedDate] }
   );
   
   const { data: itemSalesData } = useApi(
-    () => dbApi.getItemSales(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getItemSales(selectedDate),
+    { deps: [selectedDate] }
   );
   
   const { data: storeSalesData } = useApi(
-    () => dbApi.getStoreSales(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getStoreSales(selectedDate),
+    { deps: [selectedDate] }
   );
   
   // Combined data object for context
@@ -136,7 +130,6 @@ const DashboardContent: React.FC = () => {
     transactionItems: transactionItemsData || null,
     itemSales: itemSalesData || null,
     storeSales: storeSalesData || null,
-    selectedStoreId,
     fetchDashboardData
   };
   
@@ -144,19 +137,15 @@ const DashboardContent: React.FC = () => {
     setSelectedDate(event.target.value);
   };
   
-  const handleStoreChange = (storeId: number | null) => {
-    setSelectedStoreId(storeId);
-  };
-  
   return (
     <DashboardDataContext.Provider value={dashboardData}>
-      <Box sx={{ flexGrow: 1, maxWidth: '1800px', mx: 'auto' }}>
+      <Box sx={{ flexGrow: 1 }}>
         {/* Page Header */}
         <Paper 
           elevation={0}
           sx={{ 
-            mb: 2, 
-            p: { xs: 2, md: 2.5 }, 
+            mb: 3, 
+            p: 3, 
             borderRadius: 2,
             background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
             border: `1px solid ${theme.palette.divider}`
@@ -221,35 +210,27 @@ const DashboardContent: React.FC = () => {
                 </Typography>
               </Breadcrumbs>
               
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <StoreSelector
-                  value={selectedStoreId}
-                  onChange={handleStoreChange}
-                  sx={{ width: 200 }}
-                />
-                <TextField
-                  label="Select Date"
-                  type="date"
-                  value={selectedDate}
-                  onChange={handleDateChange}
-                  sx={{ width: 200 }}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                />
-              </Box>
+              <TextField
+                label="Select Date"
+                type="date"
+                value={selectedDate}
+                onChange={handleDateChange}
+                sx={{ width: 200 }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
             </Box>
             
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {formattedDate}
-              {selectedStoreId !== null && ' • Filtered by store'}
             </Typography>
           </Stack>
         </Paper>
 
         {/* Stats Cards */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Sales"
               value={salesSummary?.todaySales || 0}
@@ -260,7 +241,7 @@ const DashboardContent: React.FC = () => {
               color="primary"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Active Orders"
               value={salesSummary?.activeOrders || 0}
@@ -270,7 +251,7 @@ const DashboardContent: React.FC = () => {
               color="secondary"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Customers"
               value={salesSummary?.customers || 0}
@@ -280,7 +261,7 @@ const DashboardContent: React.FC = () => {
               color="success"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Menu Items"
               value={menuStatsData?.menuItemCount || 0}
@@ -292,7 +273,7 @@ const DashboardContent: React.FC = () => {
         </Box>
 
         {/* Sales Chart */}
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <DashboardSalesChart
             title="Sales Overview"
             subtitle="Track your restaurant's sales performance over time"
@@ -300,7 +281,7 @@ const DashboardContent: React.FC = () => {
         </Box>
 
         {/* Revenue Breakdown */}
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <DashboardRevenueBreakdown
             title="Revenue Breakdown"
             subtitle="Sales distribution by food category"
@@ -308,15 +289,15 @@ const DashboardContent: React.FC = () => {
         </Box>
 
         {/* Orders and Popular Items */}
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, mb: 2 }}>
-          <Box sx={{ width: { xs: '100%', lg: '60%' }}}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
+          <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
             <DashboardRecentOrders
               title="Recent Orders"
               subtitle="Latest orders from your customers"
               onViewAll={() => console.log('View all orders')}
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', lg: '40%' }}}>
+          <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
             <DashboardPopularItems
               title="Popular Items"
               subtitle="Best-selling items in your menu"
@@ -372,8 +353,8 @@ const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
   
   // Function to fetch dashboard data
-  const fetchDashboardData = useCallback((date: string, storeId?: number | null) => {
-    console.log('Fetching dashboard data for date:', date, 'storeId:', storeId);
+  const fetchDashboardData = useCallback((date: string) => {
+    console.log('Fetching dashboard data for date:', date);
     // Data is already fetched via useApi hooks with date as dependency
   }, []);
   
@@ -385,7 +366,6 @@ const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     transactionItems: transactionItemsData || null,
     itemSales: itemSalesData || null,
     storeSales: storeSalesData || null,
-    selectedStoreId: null,
     fetchDashboardData
   };
   

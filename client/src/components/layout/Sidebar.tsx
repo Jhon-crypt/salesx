@@ -30,7 +30,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 260;
 
 const StyledDrawer = styled(Drawer)(({ theme }) => ({
   width: DRAWER_WIDTH,
