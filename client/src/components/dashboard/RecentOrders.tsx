@@ -1,24 +1,22 @@
-import React from 'react';
-import {
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
+import React, { useState, useEffect } from 'react';
+import { 
+  Typography, 
+  Box, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
   TableRow,
-  Chip,
+  Button,
   CircularProgress,
-  Button
+  Paper
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import useApi from '../../hooks/useApi';
-import { dbApi, TransactionItem } from '../../services/api';
+import { useTheme } from '@mui/material/styles';
+import { TransactionItem } from '../../services/api';
 import { format } from 'date-fns';
-import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 interface RecentOrdersProps {
   title: string;
@@ -27,184 +25,138 @@ interface RecentOrdersProps {
   preloadedData?: TransactionItem[];
 }
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-}));
-
-const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
-  let color;
-  switch (status.toLowerCase()) {
-    case 'completed':
-      color = theme.palette.success.main;
-      break;
-    case 'pending':
-      color = theme.palette.warning.main;
-      break;
-    case 'canceled':
-    case 'void':
-      color = theme.palette.error.main;
-      break;
-    default:
-      color = theme.palette.info.main;
-  }
-
-  return {
-    backgroundColor: color,
-    color: theme.palette.getContrastText(color),
-    fontWeight: 'bold',
-    fontSize: '0.75rem',
-  };
-});
-
-// Process transaction items into order-like format
-const processTransactions = (transactions: any[]) => {
-  if (!transactions || transactions.length === 0) return [];
-
-  // Group transactions by check_number (order ID)
-  const orderMap = new Map<string, any>();
-  
-  transactions.forEach(item => {
-    if (!item || !item.check_number) return; // Skip invalid items
-    
-    const orderId = item.check_number.toString();
-    
-    // Format date - using business_date instead of transaction_date
-    const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
-    const date = new Date(dateStr);
-    
-    if (!orderMap.has(orderId)) {
-      orderMap.set(orderId, {
-        id: orderId,
-        customer: `Guest ${orderId.slice(-4)}`,
-        items: [],
-        total: 0,
-        status: 'Completed', // Default status
-        date: date,
-        dateFormatted: format(date, 'MMM dd, yyyy h:mm a')
-      });
-    }
-    
-    const order = orderMap.get(orderId);
-    // Use item_id if menu_item_name is not available
-    const itemName = item.menu_item_name || `Item #${item.item_id}`;
-    order.items.push(itemName);
-    
-    // Use price if item_sell_price is not available
-    const itemPrice = typeof item.item_sell_price === 'number' ? item.item_sell_price : 
-                      typeof item.price === 'number' ? item.price : 0;
-    
-    order.total += itemPrice;
-  });
-  
-  // Convert map to array and sort by date (most recent first)
-  return Array.from(orderMap.values())
-    .sort((a, b) => b.date.getTime() - a.date.getTime())
-    .slice(0, 5); // Only keep the 5 most recent orders
-};
-
-const RecentOrders: React.FC<RecentOrdersProps> = ({
-  title,
+const RecentOrders: React.FC<RecentOrdersProps> = ({ 
+  title, 
   subtitle,
   onViewAll,
-  preloadedData
+  preloadedData 
 }) => {
-  // Fetch transaction items from API only if not provided via props
-  const { data: fetchedTransactionItems, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(),
-    { skipFetch: !!preloadedData }
-  );
+  const theme = useTheme();
+  const [data, setData] = useState<TransactionItem[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Use preloaded data if available
+  useEffect(() => {
+    if (preloadedData) {
+      setData(preloadedData);
+      setLoading(false);
+      setError(null);
+    } else {
+      setLoading(true);
+    }
+  }, [preloadedData]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    // Force refresh the data
+    window.location.reload();
+  };
   
-  // Use preloaded data if available, otherwise use fetched data
-  const transactionItems = preloadedData || fetchedTransactionItems;
-  
-  // Process transaction items into orders
-  const orders = React.useMemo(() => {
-    return processTransactions(transactionItems || []);
-  }, [transactionItems]);
+  // Format currency
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+  };
 
   return (
-    <StyledCard>
-      <CardContent sx={{ padding: 2, flexGrow: 1 }}>
-        {title && (
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box>
-              <Typography variant="h6" fontWeight="bold">
-                {title}
-              </Typography>
-              {subtitle && (
-                <Typography variant="body2" color="text.secondary">
-                  {subtitle}
-                </Typography>
-              )}
-            </Box>
-            {onViewAll && (
-              <Button
-                endIcon={<ArrowRightAltIcon />}
-                onClick={onViewAll}
-                size="small"
-              >
-                View All
-              </Button>
-            )}
-          </Box>
-        )}
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        p: 3, 
+        height: '100%', 
+        borderRadius: 2,
+        border: `1px solid ${theme.palette.divider}`
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Box>
+          <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
+            {title}
+          </Typography>
+          
+          {subtitle && (
+            <Typography variant="body2" color="text.secondary">
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
         
-        {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Typography color="error">
-            Error loading transaction data: {error.message}
-          </Typography>
-        ) : orders.length === 0 ? (
-          <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-            No recent orders found
-          </Typography>
-        ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Order ID</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Items</TableCell>
-                  <TableCell align="right">Total</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id} hover>
-                    <TableCell component="th" scope="row">
-                      #{order.id}
-                    </TableCell>
-                    <TableCell>{order.customer}</TableCell>
-                    <TableCell>
-                      {order.items.length > 2
-                        ? `${order.items[0]}, ${order.items[1]} +${order.items.length - 2} more`
-                        : order.items.join(', ')}
-                    </TableCell>
-                    <TableCell align="right">${order.total.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <StatusChip
-                        label={order.status}
-                        status={order.status}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{order.dateFormatted}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+        {onViewAll && (
+          <Button 
+            color="primary" 
+            onClick={onViewAll}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            View All
+          </Button>
         )}
-      </CardContent>
-    </StyledCard>
+      </Box>
+      
+      {loading && !data && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+          <CircularProgress size={40} />
+        </Box>
+      )}
+      
+      {error && (
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          height: 300,
+          color: 'error.main'
+        }}>
+          <ErrorOutlineIcon sx={{ fontSize: 48, mb: 2 }} />
+          <Typography variant="body1" gutterBottom>
+            Error loading transaction data: Network Error
+          </Typography>
+          <Button 
+            variant="outlined" 
+            color="primary" 
+            startIcon={<RefreshIcon />}
+            onClick={handleRetry}
+            sx={{ mt: 2 }}
+          >
+            Retry
+          </Button>
+        </Box>
+      )}
+      
+      {data && data.length > 0 && (
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Order #</TableCell>
+                <TableCell>Item</TableCell>
+                <TableCell align="right">Qty</TableCell>
+                <TableCell align="right">Price</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {data.slice(0, 5).map((order, index) => (
+                <TableRow key={index} hover>
+                  <TableCell>#{order.check_number}</TableCell>
+                  <TableCell>{order.menu_item_name || `Item ${order.item_id}`}</TableCell>
+                  <TableCell align="right">{order.quantity}</TableCell>
+                  <TableCell align="right">{formatCurrency(order.price)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+      
+      {data && data.length === 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+          <Typography variant="body1" color="text.secondary">
+            No recent orders available for the selected period
+          </Typography>
+        </Box>
+      )}
+    </Paper>
   );
 };
 

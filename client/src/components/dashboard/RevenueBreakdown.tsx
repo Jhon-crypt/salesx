@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -12,12 +12,15 @@ import {
   TableRow,
   useTheme,
   LinearProgress,
-  CircularProgress
+  CircularProgress,
+  Button
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import useApi from '../../hooks/useApi';
 import { dbApi, CategorySales } from '../../services/api';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 interface RevenueBreakdownProps {
   title: string;
@@ -67,24 +70,43 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
   preloadedData
 }) => {
   const theme = useTheme();
-  
-  // Fetch category sales data from API only if not provided through props
-  const { data: fetchedCategorySales, isLoading, error } = useApi(
-    () => dbApi.getCategorySales(),
-    { skipFetch: !!preloadedData }
-  );
-  
-  // Use preloaded data if available, otherwise use fetched data
-  const categorySales = preloadedData || fetchedCategorySales;
+  const [data, setData] = useState<CategorySales[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const RADIAN = Math.PI / 180;
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+  // Use preloaded data if available
+  useEffect(() => {
+    if (preloadedData) {
+      setData(preloadedData);
+      setLoading(false);
+      setError(null);
+    } else {
+      setLoading(true);
+    }
+  }, [preloadedData]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    // Force refresh the data
+    window.location.reload();
+  };
+
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     return (
-      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        style={{ fontSize: '12px', fontWeight: 500 }}
+      >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
     );
@@ -102,19 +124,38 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
           </Typography>
         )}
 
-        {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
-            <CircularProgress />
+        {loading && !data && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
+            <CircularProgress size={40} />
           </Box>
-        ) : error ? (
-          <Typography color="error">
-            Error loading category sales data: {error.message}
-          </Typography>
-        ) : categorySales?.length === 0 ? (
-          <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-            No revenue breakdown data available
-          </Typography>
-        ) : (
+        )}
+        
+        {error && (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            height: '300px',
+            color: 'error.main'
+          }}>
+            <ErrorOutlineIcon sx={{ fontSize: 48, mb: 2 }} />
+            <Typography variant="body1" gutterBottom>
+              Error loading category sales data: Network Error
+            </Typography>
+            <Button 
+              variant="outlined" 
+              color="primary" 
+              startIcon={<RefreshIcon />}
+              onClick={handleRetry}
+              sx={{ mt: 2 }}
+            >
+              Retry
+            </Button>
+          </Box>
+        )}
+        
+        {data && data.length > 0 && (
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
             <Box sx={{ 
               flexBasis: '40%', 
@@ -125,7 +166,7 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie
-                    data={categorySales}
+                    data={data}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -134,23 +175,22 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {categorySales?.map((entry, index) => (
+                    {data.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    formatter={(value: number) => [formatCurrency(value), 'Revenue']}
-                    contentStyle={{
+                  <Tooltip
+                    formatter={(value: number) => `$${value.toLocaleString()}`}
+                    contentStyle={{ 
                       backgroundColor: theme.palette.background.paper,
-                      border: `1px solid ${theme.palette.divider}`,
+                      borderColor: theme.palette.divider,
                       borderRadius: 8,
-                      boxShadow: theme.shadows[3],
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
                     }}
                   />
                   <Legend 
-                    formatter={(value, entry, index) => {
-                      return <span style={{ color: theme.palette.text.primary }}>{value}</span>;
-                    }}
+                    verticalAlign="bottom" 
+                    formatter={(value) => <span style={{ color: theme.palette.text.primary }}>{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -167,7 +207,7 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {categorySales?.map((category, index) => (
+                    {data?.map((category, index) => (
                       <TableRow key={index} hover>
                         <StyledTableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -217,6 +257,12 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
               </TableContainer>
             </Box>
           </Box>
+        )}
+        
+        {data && data.length === 0 && (
+          <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
+            No revenue breakdown data available
+          </Typography>
         )}
       </CardContent>
     </StyledCard>

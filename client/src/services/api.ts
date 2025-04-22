@@ -10,9 +10,13 @@ const getBaseUrl = () => {
     return envApiUrl;
   }
   
+  // Check if running on DigitalOcean or Heroku
+  const isDOorHeroku = window.location.hostname.includes('salesxyz') || 
+                      window.location.hostname.includes('herokuapp.com');
+  
   // Check multiple conditions to determine if we're in production
   const isProd = import.meta.env.PROD || 
-                 window.location.hostname.includes('herokuapp.com') ||
+                 isDOorHeroku ||
                  window.location.hostname !== 'localhost';
   
   console.log('Environment:', isProd ? 'PRODUCTION' : 'DEVELOPMENT');
@@ -23,6 +27,10 @@ const getBaseUrl = () => {
   
   // Use relative URL in production, localhost in development
   if (isProd) {
+    // If we're on DigitalOcean, use the full API URL
+    if (window.location.hostname.includes('salesxyz')) {
+      return 'https://salesxyz-b9f576c443d9.herokuapp.com/api';
+    }
     return '/api';
   } else {
     // In development, try to connect to the server on different ports
@@ -41,19 +49,43 @@ const api = axios.create({
   timeout: 60000, // 60 seconds timeout for slow queries
   headers: {
     'Content-Type': 'application/json',
-  }
+  },
+  // Add withCredentials if we're dealing with CORS
+  withCredentials: false
 });
 
-// Add response interceptor to detect server port issues
+// Add response interceptor to detect server port issues and retry logic
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If we get a network error and we're in development, try other ports
-    if (error.message === 'Network Error' && 
-        !import.meta.env.PROD && 
-        window.location.hostname === 'localhost') {
-      console.warn('Network error occurred. Server might be running on a different port.');
+    console.error('API Error:', error);
+    
+    // Specific error handling
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Error status:', error.response.status);
+      console.error('Error data:', error.response.data);
+      
+      // If we get a 503 Service Unavailable, the server might be starting up
+      if (error.response.status === 503) {
+        console.warn('Server is unavailable. It might be starting up.');
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No response received:', error.request);
+      
+      // If we get a network error and we're in development, try other ports
+      if (error.message === 'Network Error' && 
+          !import.meta.env.PROD && 
+          window.location.hostname === 'localhost') {
+        console.warn('Network error occurred. Server might be running on a different port.');
+      }
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error message:', error.message);
     }
+    
     return Promise.reject(error);
   }
 );
