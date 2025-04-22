@@ -124,79 +124,82 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
           </Typography>
         )}
 
-        {loading && !data && (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
-            <CircularProgress size={40} />
-          </Box>
-        )}
-        
-        {error && (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            height: '300px',
-            color: 'error.main'
-          }}>
-            <ErrorOutlineIcon sx={{ fontSize: 48, mb: 2 }} />
-            <Typography variant="body1" gutterBottom>
-              Error loading category sales data: Network Error
-            </Typography>
-            <Button 
-              variant="outlined" 
-              color="primary" 
-              startIcon={<RefreshIcon />}
-              onClick={handleRetry}
-              sx={{ mt: 2 }}
-            >
-              Retry
-            </Button>
-          </Box>
-        )}
-        
-        {data && data.length > 0 && (
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
-            <Box sx={{ 
-              flexBasis: '40%', 
-              display: 'flex', 
-              justifyContent: 'center', 
-              mb: { xs: 3, md: 0 } 
-            }}>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => `$${value.toLocaleString()}`}
-                    contentStyle={{ 
-                      backgroundColor: theme.palette.background.paper,
-                      borderColor: theme.palette.divider,
-                      borderRadius: 8,
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                    }}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    formatter={(value) => <span style={{ color: theme.palette.text.primary }}>{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+        <Box sx={{ width: '100%', height: 400, mt: 2 }}>
+          {loading && !data && (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <CircularProgress size={40} />
             </Box>
+          )}
+          
+          {error && (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              height: '100%',
+              color: 'error.main'
+            }}>
+              <ErrorOutlineIcon sx={{ fontSize: 48, mb: 2 }} />
+              <Typography variant="body1" gutterBottom>
+                Error loading category sales data: Network Error
+              </Typography>
+              <Button 
+                variant="outlined" 
+                color="primary" 
+                startIcon={<RefreshIcon />}
+                onClick={handleRetry}
+                sx={{ mt: 2 }}
+              >
+                Retry
+              </Button>
+            </Box>
+          )}
+          
+          {data && data.length > 0 && (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={renderCustomizedLabel}
+                  outerRadius={150}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => `$${value.toLocaleString()}`}
+                  contentStyle={{ 
+                    backgroundColor: theme.palette.background.paper,
+                    borderColor: theme.palette.divider,
+                    borderRadius: 8,
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  formatter={(value) => <span style={{ color: theme.palette.text.primary }}>{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+          
+          {data && data.length === 0 && (
+            <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
+              No revenue breakdown data available
+            </Typography>
+          )}
+        </Box>
 
-            <Box sx={{ flexBasis: '60%', flexGrow: 1, pl: { xs: 0, md: 3 }, mt: { xs: 3, md: 0 } }}>
+        {data && data.length > 0 && (
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, mt: { xs: 3, md: 0 } }}>
+            <Box sx={{ flexBasis: '60%', flexGrow: 1, pl: { xs: 0, md: 3 } }}>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
@@ -257,12 +260,6 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
               </TableContainer>
             </Box>
           </Box>
-        )}
-        
-        {data && data.length === 0 && (
-          <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-            No revenue breakdown data available
-          </Typography>
         )}
       </CardContent>
     </StyledCard>

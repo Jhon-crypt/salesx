@@ -150,7 +150,7 @@ const DashboardContent: React.FC = () => {
   
   return (
     <DashboardDataContext.Provider value={dashboardData}>
-      <Box sx={{ flexGrow: 1 }}>
+      <Box sx={{ flexGrow: 1, maxWidth: '1600px', mx: 'auto' }}>
         {/* Page Header */}
         <Paper 
           elevation={0}
@@ -249,7 +249,7 @@ const DashboardContent: React.FC = () => {
 
         {/* Stats Cards */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Sales"
               value={salesSummary?.todaySales || 0}
@@ -260,7 +260,7 @@ const DashboardContent: React.FC = () => {
               color="primary"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Active Orders"
               value={salesSummary?.activeOrders || 0}
@@ -270,7 +270,7 @@ const DashboardContent: React.FC = () => {
               color="secondary"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Customers"
               value={salesSummary?.customers || 0}
@@ -280,7 +280,7 @@ const DashboardContent: React.FC = () => {
               color="success"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Menu Items"
               value={menuStatsData?.menuItemCount || 0}
@@ -309,14 +309,14 @@ const DashboardContent: React.FC = () => {
 
         {/* Orders and Popular Items */}
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
-          <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
+          <Box sx={{ width: { xs: '100%', lg: '60%' }}}>
             <DashboardRecentOrders
               title="Recent Orders"
               subtitle="Latest orders from your customers"
               onViewAll={() => console.log('View all orders')}
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
+          <Box sx={{ width: { xs: '100%', lg: '40%' }}}>
             <DashboardPopularItems
               title="Popular Items"
               subtitle="Best-selling items in your menu"

@@ -7,6 +7,9 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+// Import the sidebar width from the Sidebar component
+const DRAWER_WIDTH = 240;
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
@@ -35,8 +38,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         component="main" 
         sx={{ 
           flexGrow: 1,
-          p: 3,
-          width: { md: `calc(100% - 260px)` },
+          p: { xs: 2, md: 3 },
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          maxWidth: '100%',
+          margin: '0 auto',
           backgroundColor: theme.palette.background.default,
           overflow: 'auto',
           height: '100vh',
