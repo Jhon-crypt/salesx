@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Grid, Typography, Box, Breadcrumbs, Link, useTheme, Paper, Stack, TextField } from '@mui/material';
-import { format, subDays, parseISO } from 'date-fns';
+import React, { useEffect, useState, useMemo, useContext, useCallback } from 'react';
+import { Box, Typography, Breadcrumbs, Link, useTheme, Paper, Stack, TextField } from '@mui/material';
+import { format } from 'date-fns';
+import StatsCard from '../components/dashboard/StatsCard';
+import SalesChart from '../components/dashboard/SalesChart';
+import RevenueBreakdown from '../components/dashboard/RevenueBreakdown';
+import RecentOrders from '../components/dashboard/RecentOrders';
+import PopularItems from '../components/dashboard/PopularItems';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import StoreIcon from '@mui/icons-material/Store';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import GroupIcon from '@mui/icons-material/Group';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-
-// Components
-import StatsCard from '../components/dashboard/StatsCard';
-import SalesChart from '../components/dashboard/SalesChart';
-import RecentOrders from '../components/dashboard/RecentOrders';
-import PopularItems from '../components/dashboard/PopularItems';
-import RevenueBreakdown from '../components/dashboard/RevenueBreakdown';
 
 // API hooks
 import useApi from '../hooks/useApi';
@@ -27,6 +25,7 @@ const DashboardDataContext = React.createContext<{
   transactionItems: TransactionItem[] | null;
   itemSales: ItemSalesData[] | null;
   storeSales: SalesData[] | null;
+  fetchDashboardData?: (date: string) => void;
 }>({
   salesSummary: null,
   menuStats: null,
@@ -37,71 +36,101 @@ const DashboardDataContext = React.createContext<{
 });
 
 // Enhanced components that use data from context rather than fetching themselves
-const EnhancedSalesChart: React.FC<{ title: string; subtitle?: string }> = (props) => {
+const DashboardSalesChart: React.FC<{ title: string; subtitle?: string }> = (props) => {
   const { storeSales } = React.useContext(DashboardDataContext);
-  return <SalesChart {...props} preloadedData={storeSales} />;
+  return <SalesChart {...props} preloadedData={storeSales || undefined} />;
 };
 
-const EnhancedRevenueBreakdown: React.FC<{ title: string; subtitle?: string }> = (props) => {
+const DashboardRevenueBreakdown: React.FC<{ title: string; subtitle?: string }> = (props) => {
   const { categorySales } = React.useContext(DashboardDataContext);
-  return <RevenueBreakdown {...props} preloadedData={categorySales} />;
+  return <RevenueBreakdown {...props} preloadedData={categorySales || undefined} />;
 };
 
-const EnhancedRecentOrders: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
+const DashboardRecentOrders: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
   const { transactionItems } = React.useContext(DashboardDataContext);
-  return <RecentOrders {...props} preloadedData={transactionItems} />;
+  return <RecentOrders {...props} preloadedData={transactionItems || undefined} />;
 };
 
-const EnhancedPopularItems: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
+const DashboardPopularItems: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
   const { itemSales } = React.useContext(DashboardDataContext);
-  return <PopularItems {...props} preloadedData={itemSales} />;
+  return <PopularItems {...props} preloadedData={itemSales || undefined} />;
 };
 
-const Dashboard: React.FC = () => {
-  const theme = useTheme();
-  const yesterday = subDays(new Date(), 1);
+const DashboardContent: React.FC = () => {
+  // Yesterday's date calculation
+  const yesterday = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 1);
+    return date;
+  }, []);
+
+  // State for date picker
   const [selectedDate, setSelectedDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
-  const formattedDate = format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy');
+
+  // Get dashboard data from context
+  const { 
+    salesSummary,
+    fetchDashboardData
+  } = useContext(DashboardDataContext);
+
+  // Fetch data when selected date changes
+  useEffect(() => {
+    console.log('Current selectedDate:', selectedDate);
+    if (fetchDashboardData) {
+      fetchDashboardData(selectedDate);
+    }
+  }, [selectedDate, fetchDashboardData]);
+  
+  const theme = useTheme();
+  
+  // Format the date for display
+  const formattedDate = format(yesterday, 'EEEE, MMMM d, yyyy');
+  
+  // Log for debugging
+  useEffect(() => {
+    console.log('Dashboard rendering with date:', selectedDate);
+  }, [selectedDate]);
   
   // Fetch all dashboard data in parallel at component mount
-  const { data: salesSummary, isLoading: isLoadingSales } = useApi(
+  const { data: salesSummaryData } = useApi(
     () => dbApi.getSalesSummary(selectedDate),
     { deps: [selectedDate] }
   );
   
-  const { data: menuStats, isLoading: isLoadingMenu } = useApi(
+  const { data: menuStatsData } = useApi(
     () => dbApi.getMenuStats(selectedDate),
     { deps: [selectedDate] }
   );
   
-  const { data: categorySales, isLoading: isLoadingCategories } = useApi(
+  const { data: categorySalesData } = useApi(
     () => dbApi.getCategorySales(selectedDate),
     { deps: [selectedDate] }
   );
   
-  const { data: transactionItems, isLoading: isLoadingTransactions } = useApi(
+  const { data: transactionItemsData } = useApi(
     () => dbApi.getTransactionItems(selectedDate),
     { deps: [selectedDate] }
   );
   
-  const { data: itemSales, isLoading: isLoadingItems } = useApi(
+  const { data: itemSalesData } = useApi(
     () => dbApi.getItemSales(selectedDate),
     { deps: [selectedDate] }
   );
   
-  const { data: storeSales, isLoading: isLoadingStoreSales } = useApi(
+  const { data: storeSalesData } = useApi(
     () => dbApi.getStoreSales(selectedDate),
     { deps: [selectedDate] }
   );
   
   // Combined data object for context
   const dashboardData = {
-    salesSummary: salesSummary || null,
-    menuStats: menuStats || null,
-    categorySales: categorySales || null,
-    transactionItems: transactionItems || null,
-    itemSales: itemSales || null,
-    storeSales: storeSales || null,
+    salesSummary: salesSummaryData || null,
+    menuStats: menuStatsData || null,
+    categorySales: categorySalesData || null,
+    transactionItems: transactionItemsData || null,
+    itemSales: itemSalesData || null,
+    storeSales: storeSalesData || null,
+    fetchDashboardData
   };
   
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,7 +264,7 @@ const Dashboard: React.FC = () => {
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Menu Items"
-              value={menuStats?.menuItemCount || 0}
+              value={menuStatsData?.menuItemCount || 0}
               suffix="items"
               icon={<StoreIcon />}
               color="warning"
@@ -245,7 +274,7 @@ const Dashboard: React.FC = () => {
 
         {/* Sales Chart */}
         <Box sx={{ mb: 3 }}>
-          <EnhancedSalesChart
+          <DashboardSalesChart
             title="Sales Overview"
             subtitle="Track your restaurant's sales performance over time"
           />
@@ -253,7 +282,7 @@ const Dashboard: React.FC = () => {
 
         {/* Revenue Breakdown */}
         <Box sx={{ mb: 3 }}>
-          <EnhancedRevenueBreakdown
+          <DashboardRevenueBreakdown
             title="Revenue Breakdown"
             subtitle="Sales distribution by food category"
           />
@@ -262,14 +291,14 @@ const Dashboard: React.FC = () => {
         {/* Orders and Popular Items */}
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
           <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
-            <EnhancedRecentOrders
+            <DashboardRecentOrders
               title="Recent Orders"
               subtitle="Latest orders from your customers"
               onViewAll={() => console.log('View all orders')}
             />
           </Box>
           <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
-            <EnhancedPopularItems
+            <DashboardPopularItems
               title="Popular Items"
               subtitle="Best-selling items in your menu"
               onViewAll={() => console.log('View all menu items')}
@@ -278,6 +307,80 @@ const Dashboard: React.FC = () => {
         </Box>
       </Box>
     </DashboardDataContext.Provider>
+  );
+};
+
+const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Yesterday's date calculation
+  const yesterday = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 1);
+    return date;
+  }, []);
+
+  // State for date picker - using the date directly in the API calls
+  const selectedDate = format(yesterday, 'yyyy-MM-dd');
+  
+  // Fetch all dashboard data in parallel at component mount
+  const { data: salesSummaryData } = useApi(
+    () => dbApi.getSalesSummary(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: menuStatsData } = useApi(
+    () => dbApi.getMenuStats(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: categorySalesData } = useApi(
+    () => dbApi.getCategorySales(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: transactionItemsData } = useApi(
+    () => dbApi.getTransactionItems(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: itemSalesData } = useApi(
+    () => dbApi.getItemSales(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: storeSalesData } = useApi(
+    () => dbApi.getStoreSales(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  // Function to fetch dashboard data
+  const fetchDashboardData = useCallback((date: string) => {
+    console.log('Fetching dashboard data for date:', date);
+    // Data is already fetched via useApi hooks with date as dependency
+  }, []);
+  
+  // Combined data object for context
+  const dashboardData = {
+    salesSummary: salesSummaryData || null,
+    menuStats: menuStatsData || null,
+    categorySales: categorySalesData || null,
+    transactionItems: transactionItemsData || null,
+    itemSales: itemSalesData || null,
+    storeSales: storeSalesData || null,
+    fetchDashboardData
+  };
+  
+  return (
+    <DashboardDataContext.Provider value={dashboardData}>
+      {children}
+    </DashboardDataContext.Provider>
+  );
+};
+
+const Dashboard: React.FC = () => {
+  return (
+    <DashboardDataProvider>
+      <DashboardContent />
+    </DashboardDataProvider>
   );
 };
 

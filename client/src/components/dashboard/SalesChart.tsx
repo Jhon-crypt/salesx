@@ -47,7 +47,7 @@ const processDataByTimeRange = (data: SalesData[], range: TimeRange) => {
     
     switch (range) {
       case 'day':
-        return date >= subDays(now, 1);
+        return date >= subDays(now, 1); // This will filter to just yesterday
       case 'week':
         return date >= subDays(now, 7);
       case 'month':
