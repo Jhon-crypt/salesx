@@ -111,7 +111,7 @@ const SalesChart: React.FC<SalesChartProps> = ({
   preloadedData
 }) => {
   const theme = useTheme();
-  const [timeRange, setTimeRange] = useState<TimeRange>('week');
+  const [timeRange, setTimeRange] = useState<TimeRange>('day');
   
   // Fetch sales data from API only if not provided via props
   const { data: fetchedSalesData, isLoading, error } = useApi(

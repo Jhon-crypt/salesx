@@ -51,6 +51,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import useApi from '../hooks/useApi';
 import { dbApi, ItemSalesData, CategorySales } from '../services/api';
+import { format, subDays, parseISO } from 'date-fns';
 
 // Define tabs for report views
 interface TabPanelProps {
@@ -131,16 +132,17 @@ const MenuAnalysis: React.FC = () => {
   const [storeFilter, setStoreFilter] = useState('all');
   const [activeTab, setActiveTab] = useState(0);
   const [filteredItems, setFilteredItems] = useState<ProcessedItemSale[]>([]);
+  const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   
   // Fetch data
   const { data: itemSales, isLoading: isLoadingItems, error: itemsError } = useApi(
-    () => dbApi.getItemSales(),
-    {}
+    () => dbApi.getItemSales(dateFilter),
+    { deps: [dateFilter] }
   );
   
   const { data: categorySales, isLoading: isLoadingCategories, error: categoriesError } = useApi(
-    () => dbApi.getCategorySales(),
-    {}
+    () => dbApi.getCategorySales(dateFilter),
+    { deps: [dateFilter] }
   );
   
   // Process and prepare data when raw data changes or filters change
@@ -180,6 +182,19 @@ const MenuAnalysis: React.FC = () => {
     // Apply filters
     let filtered = [...processed];
     
+    // Date filter
+    if (dateFilter) {
+      const filterDate = parseISO(dateFilter);
+      filtered = filtered.filter(item => {
+        const itemDate = parseISO(item.date);
+        return (
+          itemDate.getFullYear() === filterDate.getFullYear() &&
+          itemDate.getMonth() === filterDate.getMonth() &&
+          itemDate.getDate() === filterDate.getDate()
+        );
+      });
+    }
+    
     // Search filter
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
@@ -211,7 +226,7 @@ const MenuAnalysis: React.FC = () => {
     });
     
     setFilteredItems(filtered);
-  }, [itemSales, searchTerm, sortBy, storeFilter]);
+  }, [itemSales, searchTerm, sortBy, storeFilter, dateFilter]);
   
   // Handle filter changes
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,6 +243,10 @@ const MenuAnalysis: React.FC = () => {
   
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+  };
+  
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDateFilter(event.target.value);
   };
   
   // Get unique stores for filter options
@@ -321,10 +340,18 @@ const MenuAnalysis: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             <TextField
-              placeholder="Search menu items..."
+              label="Date"
+              type="date"
+              value={dateFilter}
+              onChange={handleDateChange}
+              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              placeholder="Search items..."
               value={searchTerm}
               onChange={handleSearchChange}
-              sx={{ flex: 1, minWidth: 200 }}
+              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">

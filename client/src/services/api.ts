@@ -151,14 +151,16 @@ export const dbApi = {
   },
   
   // Get simple sales data without joins
-  getSimpleSales: async () => {
-    const response = await api.get<{success: boolean, data: SalesData[]}>('/db/simple-sales');
+  getSimpleSales: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: SalesData[]}>('/db/simple-sales', { params });
     return response.data.data;
   },
 
   // Get store sales with store information
-  getStoreSales: async () => {
-    const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales');
+  getStoreSales: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales', { params });
     return response.data.data;
   },
 
@@ -189,20 +191,23 @@ export const dbApi = {
   },
 
   // Get item sales data
-  getItemSales: async () => {
-    const response = await api.get<{success: boolean, data: ItemSalesData[]}>('/db/item-sales');
+  getItemSales: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: ItemSalesData[]}>('/db/item-sales', { params });
     return response.data.data;
   },
 
   // Get transaction items
-  getTransactionItems: async () => {
-    const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items');
+  getTransactionItems: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
     return response.data.data;
   },
 
   // Get void transactions
-  getVoidTransactions: async () => {
-    const response = await api.get<{success: boolean, data: VoidTransaction[]}>('/db/void-transactions');
+  getVoidTransactions: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: VoidTransaction[]}>('/db/void-transactions', { params });
     return response.data.data;
   },
 
@@ -225,20 +230,23 @@ export const dbApi = {
   },
 
   // Get current sales summary for dashboard
-  getSalesSummary: async () => {
-    const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary');
+  getSalesSummary: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary', { params });
     return response.data.data;
   },
   
   // Get menu items statistics
-  getMenuStats: async () => {
-    const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats');
+  getMenuStats: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats', { params });
     return response.data.data;
   },
   
   // Get sales by category for revenue breakdown
-  getCategorySales: async () => {
-    const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales');
+  getCategorySales: async (date?: string) => {
+    const params = date ? { date } : {};
+    const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });
     return response.data.data;
   },
 };

@@ -27,7 +27,7 @@ import {
   useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { format } from 'date-fns';
+import { format, subDays, parseISO } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -77,11 +77,12 @@ const Transactions: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   
   // Fetch transaction items from API
   const { data: transactionItems, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(),
-    {}
+    () => dbApi.getTransactionItems(dateFilter),
+    { deps: [dateFilter] }
   );
   
   // Process transaction items into orders
@@ -133,6 +134,19 @@ const Transactions: React.FC = () => {
   useEffect(() => {
     let result = orders;
     
+    // Apply date filter
+    if (dateFilter) {
+      const filterDate = parseISO(dateFilter);
+      result = result.filter(order => {
+        const orderDate = new Date(order.date);
+        return (
+          orderDate.getFullYear() === filterDate.getFullYear() &&
+          orderDate.getMonth() === filterDate.getMonth() &&
+          orderDate.getDate() === filterDate.getDate()
+        );
+      });
+    }
+    
     // Apply search filter
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
@@ -151,7 +165,7 @@ const Transactions: React.FC = () => {
     
     setFilteredOrders(result);
     setPage(1); // Reset to first page when filters change
-  }, [orders, searchTerm, statusFilter]);
+  }, [orders, searchTerm, statusFilter, dateFilter]);
   
   // Pagination
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
@@ -170,6 +184,10 @@ const Transactions: React.FC = () => {
   
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
+  };
+
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDateFilter(event.target.value);
   };
 
   return (
@@ -223,6 +241,16 @@ const Transactions: React.FC = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <TextField
+                label="Date"
+                type="date"
+                value={dateFilter}
+                onChange={handleDateChange}
+                sx={{ width: '100%' }}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
             <Box sx={{ flex: 1 }}>
               <TextField
                 fullWidth

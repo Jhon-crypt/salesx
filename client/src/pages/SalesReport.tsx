@@ -106,8 +106,8 @@ const TrendIndicator = ({ value }: { value: number }) => {
 const SalesReport: React.FC = () => {
   const theme = useTheme();
   // State for filters and data display
-  const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState(0);
@@ -115,8 +115,8 @@ const SalesReport: React.FC = () => {
   
   // Fetch sales data
   const { data: salesData, isLoading, error } = useApi(
-    () => dbApi.getStoreSales(),
-    {}
+    () => dbApi.getStoreSales(startDate),
+    { deps: [startDate] }
   );
   
   // Process and prepare data when raw data changes or filters change

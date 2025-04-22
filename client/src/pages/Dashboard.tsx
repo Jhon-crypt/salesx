@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Typography, Box, Breadcrumbs, Link, useTheme, Paper, Stack } from '@mui/material';
-import { format } from 'date-fns';
+import { Grid, Typography, Box, Breadcrumbs, Link, useTheme, Paper, Stack, TextField } from '@mui/material';
+import { format, subDays, parseISO } from 'date-fns';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import StoreIcon from '@mui/icons-material/Store';
@@ -59,15 +59,40 @@ const EnhancedPopularItems: React.FC<{ title: string; subtitle?: string; onViewA
 
 const Dashboard: React.FC = () => {
   const theme = useTheme();
-  const today = format(new Date(), 'EEEE, MMMM d, yyyy');
+  const yesterday = subDays(new Date(), 1);
+  const [selectedDate, setSelectedDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
+  const formattedDate = format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy');
   
   // Fetch all dashboard data in parallel at component mount
-  const { data: salesSummary, isLoading: isLoadingSales } = useApi(() => dbApi.getSalesSummary());
-  const { data: menuStats, isLoading: isLoadingMenu } = useApi(() => dbApi.getMenuStats());
-  const { data: categorySales, isLoading: isLoadingCategories } = useApi(() => dbApi.getCategorySales());
-  const { data: transactionItems, isLoading: isLoadingTransactions } = useApi(() => dbApi.getTransactionItems());
-  const { data: itemSales, isLoading: isLoadingItems } = useApi(() => dbApi.getItemSales());
-  const { data: storeSales, isLoading: isLoadingStoreSales } = useApi(() => dbApi.getStoreSales());
+  const { data: salesSummary, isLoading: isLoadingSales } = useApi(
+    () => dbApi.getSalesSummary(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: menuStats, isLoading: isLoadingMenu } = useApi(
+    () => dbApi.getMenuStats(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: categorySales, isLoading: isLoadingCategories } = useApi(
+    () => dbApi.getCategorySales(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: transactionItems, isLoading: isLoadingTransactions } = useApi(
+    () => dbApi.getTransactionItems(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: itemSales, isLoading: isLoadingItems } = useApi(
+    () => dbApi.getItemSales(selectedDate),
+    { deps: [selectedDate] }
+  );
+  
+  const { data: storeSales, isLoading: isLoadingStoreSales } = useApi(
+    () => dbApi.getStoreSales(selectedDate),
+    { deps: [selectedDate] }
+  );
   
   // Combined data object for context
   const dashboardData = {
@@ -77,6 +102,10 @@ const Dashboard: React.FC = () => {
     transactionItems: transactionItems || null,
     itemSales: itemSales || null,
     storeSales: storeSales || null,
+  };
+  
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(event.target.value);
   };
   
   return (
@@ -136,23 +165,36 @@ const Dashboard: React.FC = () => {
               )}
             </Box>
             
-            <Breadcrumbs aria-label="breadcrumb">
-              <Link
-                underline="hover"
-                color="inherit"
-                href="/"
-                sx={{ display: 'flex', alignItems: 'center' }}
-              >
-                <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                Home
-              </Link>
-              <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-                Dashboard
-              </Typography>
-            </Breadcrumbs>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Breadcrumbs aria-label="breadcrumb">
+                <Link
+                  underline="hover"
+                  color="inherit"
+                  href="/"
+                  sx={{ display: 'flex', alignItems: 'center' }}
+                >
+                  <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+                  Home
+                </Link>
+                <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+                  Dashboard
+                </Typography>
+              </Breadcrumbs>
+              
+              <TextField
+                label="Select Date"
+                type="date"
+                value={selectedDate}
+                onChange={handleDateChange}
+                sx={{ width: 200 }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Box>
             
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {today}
+              {formattedDate}
             </Typography>
           </Stack>
         </Paper>
@@ -161,11 +203,11 @@ const Dashboard: React.FC = () => {
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
-              title="Today's Sales"
+              title="Sales"
               value={salesSummary?.todaySales || 0}
               prefix="$"
               trend={salesSummary?.salesTrend}
-              trendLabel="vs Yesterday"
+              trendLabel="vs Previous Day"
               icon={<ReceiptIcon />}
               color="primary"
             />
