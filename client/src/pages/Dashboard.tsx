@@ -5,7 +5,7 @@ import StatsCard from '../components/dashboard/StatsCard';
 import SalesChart from '../components/dashboard/SalesChart';
 import RevenueBreakdown from '../components/dashboard/RevenueBreakdown';
 import RecentOrders from '../components/dashboard/RecentOrders';
-import PopularItems from '../components/dashboard/PopularItems';
+import PopularItems from '../components/dashbosard/PopularItems';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import StoreIcon from '@mui/icons-material/Store';
