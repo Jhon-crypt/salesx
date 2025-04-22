@@ -38,7 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         component="main" 
         sx={{ 
           flexGrow: 1,
-          p: { xs: 2, md: 3 },
+          p: { xs: 1.5, md: 2 },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           maxWidth: '100%',
           margin: '0 auto',

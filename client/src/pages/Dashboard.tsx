@@ -150,13 +150,13 @@ const DashboardContent: React.FC = () => {
   
   return (
     <DashboardDataContext.Provider value={dashboardData}>
-      <Box sx={{ flexGrow: 1, maxWidth: '1600px', mx: 'auto' }}>
+      <Box sx={{ flexGrow: 1, maxWidth: '1800px', mx: 'auto' }}>
         {/* Page Header */}
         <Paper 
           elevation={0}
           sx={{ 
-            mb: 3, 
-            p: 3, 
+            mb: 2, 
+            p: { xs: 2, md: 2.5 }, 
             borderRadius: 2,
             background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
             border: `1px solid ${theme.palette.divider}`
@@ -248,8 +248,8 @@ const DashboardContent: React.FC = () => {
         </Paper>
 
         {/* Stats Cards */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
             <StatsCard
               title="Sales"
               value={salesSummary?.todaySales || 0}
@@ -260,7 +260,7 @@ const DashboardContent: React.FC = () => {
               color="primary"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
             <StatsCard
               title="Active Orders"
               value={salesSummary?.activeOrders || 0}
@@ -270,7 +270,7 @@ const DashboardContent: React.FC = () => {
               color="secondary"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
             <StatsCard
               title="Customers"
               value={salesSummary?.customers || 0}
@@ -280,7 +280,7 @@ const DashboardContent: React.FC = () => {
               color="success"
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', lg: 'calc(25% - 18px)' }}}>
+          <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', lg: 'calc(25% - 12px)' }}}>
             <StatsCard
               title="Menu Items"
               value={menuStatsData?.menuItemCount || 0}
@@ -292,7 +292,7 @@ const DashboardContent: React.FC = () => {
         </Box>
 
         {/* Sales Chart */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
           <DashboardSalesChart
             title="Sales Overview"
             subtitle="Track your restaurant's sales performance over time"
@@ -300,7 +300,7 @@ const DashboardContent: React.FC = () => {
         </Box>
 
         {/* Revenue Breakdown */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
           <DashboardRevenueBreakdown
             title="Revenue Breakdown"
             subtitle="Sales distribution by food category"
@@ -308,7 +308,7 @@ const DashboardContent: React.FC = () => {
         </Box>
 
         {/* Orders and Popular Items */}
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, mb: 2 }}>
           <Box sx={{ width: { xs: '100%', lg: '60%' }}}>
             <DashboardRecentOrders
               title="Recent Orders"

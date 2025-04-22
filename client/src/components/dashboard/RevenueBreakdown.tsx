@@ -17,8 +17,7 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import useApi from '../../hooks/useApi';
-import { dbApi, CategorySales } from '../../services/api';
+import { CategorySales } from '../../services/api';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
@@ -28,7 +27,16 @@ interface RevenueBreakdownProps {
   preloadedData?: CategorySales[];
 }
 
-const StyledCard = styled(Card)(({ theme }) => ({
+interface CustomizedLabelProps {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  percent: number;
+}
+
+const StyledCard = styled(Card)(() => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
@@ -92,7 +100,7 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
     window.location.reload();
   };
 
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: CustomizedLabelProps) => {
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -114,92 +122,84 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
 
   return (
     <StyledCard>
-      <CardContent sx={{ padding: 3, flexGrow: 1 }}>
+      <CardContent sx={{ padding: 2, flexGrow: 1 }}>
         <Typography variant="h6" fontWeight="bold" gutterBottom>
           {title}
         </Typography>
         {subtitle && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {subtitle}
           </Typography>
         )}
 
-        <Box sx={{ width: '100%', height: 400, mt: 2 }}>
-          {loading && !data && (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <CircularProgress size={40} />
-            </Box>
-          )}
-          
-          {error && (
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: '100%',
-              color: 'error.main'
-            }}>
-              <ErrorOutlineIcon sx={{ fontSize: 48, mb: 2 }} />
-              <Typography variant="body1" gutterBottom>
-                Error loading category sales data: Network Error
-              </Typography>
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                startIcon={<RefreshIcon />}
-                onClick={handleRetry}
-                sx={{ mt: 2 }}
-              >
-                Retry
-              </Button>
-            </Box>
-          )}
-          
-          {data && data.length > 0 && (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={renderCustomizedLabel}
-                  outerRadius={150}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => `$${value.toLocaleString()}`}
-                  contentStyle={{ 
-                    backgroundColor: theme.palette.background.paper,
-                    borderColor: theme.palette.divider,
-                    borderRadius: 8,
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  formatter={(value) => <span style={{ color: theme.palette.text.primary }}>{value}</span>}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-          
-          {data && data.length === 0 && (
-            <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-              No revenue breakdown data available
+        {loading && !data && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px' }}>
+            <CircularProgress size={40} />
+          </Box>
+        )}
+        
+        {error && (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            height: '400px',
+            color: 'error.main'
+          }}>
+            <ErrorOutlineIcon sx={{ fontSize: 48, mb: 2 }} />
+            <Typography variant="body1" gutterBottom>
+              Error loading category sales data: Network Error
             </Typography>
-          )}
-        </Box>
-
+            <Button 
+              variant="outlined" 
+              color="primary" 
+              startIcon={<RefreshIcon />}
+              onClick={handleRetry}
+              sx={{ mt: 2 }}
+            >
+              Retry
+            </Button>
+          </Box>
+        )}
+        
         {data && data.length > 0 && (
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, mt: { xs: 3, md: 0 } }}>
-            <Box sx={{ flexBasis: '60%', flexGrow: 1, pl: { xs: 0, md: 3 } }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, mt: 2 }}>
+            <Box sx={{ width: { xs: '100%', md: '40%' }, minHeight: '350px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={renderCustomizedLabel}
+                    outerRadius="80%"
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => `$${value.toLocaleString()}`}
+                    contentStyle={{ 
+                      backgroundColor: theme.palette.background.paper,
+                      borderColor: theme.palette.divider,
+                      borderRadius: 8,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                    }}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    formatter={(value) => <span style={{ color: theme.palette.text.primary }}>{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+            
+            <Box sx={{ width: { xs: '100%', md: '60%' }, pl: { xs: 0, md: 3 }, mt: { xs: 3, md: 0 } }}>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
@@ -259,6 +259,14 @@ const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
                 </Table>
               </TableContainer>
             </Box>
+          </Box>
+        )}
+        
+        {data && data.length === 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
+            <Typography color="text.secondary" variant="body1">
+              No revenue breakdown data available
+            </Typography>
           </Box>
         )}
       </CardContent>
