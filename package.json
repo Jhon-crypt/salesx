@@ -14,6 +14,9 @@
     "install-client": "cd client && npm install --include=dev",
     "build": "cd client && npm run build:prod",
     "heroku-postbuild": "npm run install-client && npm run build",
+    "set-api-url": "node -e \"require('fs').writeFileSync('.env', 'API_URL=' + process.argv[1] + '\\nNODE_ENV=production', 'utf8'); console.log('API URL set to ' + process.argv[1])\" ",
+    "prepare-heroku": "npm run set-api-url https://salesxyz-b9f576c443d9.herokuapp.com/api && npm run build",
+    "prepare-other": "npm run set-api-url http://your-other-url.com/api && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

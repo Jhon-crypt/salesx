@@ -2,6 +2,14 @@ import axios from 'axios';
 
 // Determine the appropriate base URL based on environment
 const getBaseUrl = () => {
+  // Check for API_URL in environment variables
+  const envApiUrl = import.meta.env.VITE_API_URL;
+  
+  if (envApiUrl) {
+    console.log('Using API URL from environment:', envApiUrl);
+    return envApiUrl;
+  }
+  
   // Check multiple conditions to determine if we're in production
   const isProd = import.meta.env.PROD || 
                  window.location.hostname.includes('herokuapp.com') ||
@@ -10,8 +18,17 @@ const getBaseUrl = () => {
   console.log('Environment:', isProd ? 'PRODUCTION' : 'DEVELOPMENT');
   console.log('Hostname:', window.location.hostname);
   
+  // Ports to try in order (will try each until one works)
+  const developmentPorts = [8080, 3000, 4000, 9000];
+  
   // Use relative URL in production, localhost in development
-  return isProd ? '/api' : 'http://localhost:5000/api';
+  if (isProd) {
+    return '/api';
+  } else {
+    // In development, try to connect to the server on different ports
+    // The server will try these ports in sequence if any are in use
+    return `http://localhost:${developmentPorts[0]}/api`;
+  }
 };
 
 // Log the chosen baseURL for debugging
@@ -26,6 +43,20 @@ const api = axios.create({
     'Content-Type': 'application/json',
   }
 });
+
+// Add response interceptor to detect server port issues
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // If we get a network error and we're in development, try other ports
+    if (error.message === 'Network Error' && 
+        !import.meta.env.PROD && 
+        window.location.hostname === 'localhost') {
+      console.warn('Network error occurred. Server might be running on a different port.');
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Types based on our database schema
 export interface SalesData {

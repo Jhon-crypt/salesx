@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const http = require('http');
 
 // Import routes
 const apiRoutes = require('./routes/api');
@@ -11,7 +12,46 @@ const dbRoutes = require('./routes/db');
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PREFERRED_PORT = process.env.PORT || 8080;
+const ALTERNATIVE_PORTS = [3000, 4000, 9000]; // Try these ports if preferred port is in use
+
+// Function to start server on the first available port
+function startServer(ports, index = 0) {
+  if (index >= ports.length) {
+    console.error('❌ All ports are in use. Unable to start server.');
+    process.exit(1);
+    return;
+  }
+  
+  const PORT = ports[index];
+  const server = http.createServer(app);
+  
+  server.listen(PORT, (err) => {
+    if (err) {
+      console.log(`Port ${PORT} is in use, trying next port...`);
+      startServer(ports, index + 1);
+      return;
+    }
+    
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV}`);
+    console.log(`API available at http://localhost:${PORT}/api/test`);
+    console.log(`Database test endpoint available at http://localhost:${PORT}/api/db/test`);
+    
+    // Write the selected port to .env file for client to use
+    const fs = require('fs');
+    fs.writeFileSync('./.port.tmp', PORT.toString());
+    console.log(`Port ${PORT} saved to .port.tmp file`);
+  }).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Port ${PORT} is in use, trying next port...`);
+      startServer(ports, index + 1);
+      return;
+    }
+    console.error('Server error:', err);
+    process.exit(1);
+  });
+}
 
 // Simplified CORS configuration - allow all origins for development
 app.use(cors());
@@ -60,14 +100,5 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start the server on localhost
-app.listen(PORT, (err) => {
-  if (err) {
-    console.error('Error starting server:', err);
-    return;
-  }
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`API available at http://localhost:${PORT}/api/test`);
-  console.log(`Database test endpoint available at http://localhost:${PORT}/api/db/test`);
-}); 
+// Start the server with port fallback
+startServer([PREFERRED_PORT, ...ALTERNATIVE_PORTS]); 
