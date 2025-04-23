@@ -51,8 +51,12 @@ const StoreSelector: React.FC<StoreSelectorProps> = ({
   
   // Handle select change
   const handleChange = (event: SelectChangeEvent<string>) => {
-    const storeId = event.target.value === 'all' ? null : parseInt(event.target.value);
+    const newValue = event.target.value;
+    console.log('Store selector value changed to:', newValue);
+    
+    const storeId = newValue === 'all' ? null : parseInt(newValue);
     if (storeChangeHandler) {
+      console.log('Calling store change handler with:', storeId);
       storeChangeHandler(storeId);
     }
   };

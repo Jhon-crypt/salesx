@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useContext, useCallback } from 'react';
-import { Box, Typography, Breadcrumbs, Link, useTheme, Paper, Stack, TextField, Divider } from '@mui/material';
+import { Box, Typography, Breadcrumbs, Link, useTheme, Paper, Stack, TextField, Divider, CircularProgress, Backdrop, IconButton } from '@mui/material';
 import { format } from 'date-fns';
 import StatsCard from '../components/dashboard/StatsCard';
 import SalesChart from '../components/dashboard/SalesChart';
@@ -13,6 +13,7 @@ import StoreIcon from '@mui/icons-material/Store';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import GroupIcon from '@mui/icons-material/Group';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 // API hooks
 import useApi from '../hooks/useApi';
@@ -82,13 +83,42 @@ const DashboardContent: React.FC = () => {
     fetchDashboardData
   } = useContext(DashboardDataContext);
 
+  // State for loading state
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   // Fetch data when selected date or store changes
   useEffect(() => {
-    console.log('Selected date or store changed:', selectedDate, selectedStoreId);
+    console.log('Selected date or store changed:', selectedDate, 'store:', selectedStoreId);
+    setIsLoading(true);
+    
+    // Force re-fetch data when store changes by triggering data fetching functions
+    const fetchAllDashboardData = async () => {
+      try {
+        // These requests will be handled by the useApi hooks with their dependencies
+        await Promise.all([
+          dbApi.getSalesSummary(selectedDate, selectedStoreId),
+          dbApi.getMenuStats(selectedDate, selectedStoreId),
+          dbApi.getCategorySales(selectedDate, selectedStoreId),
+          dbApi.getTransactionItems(selectedDate, selectedStoreId),
+          dbApi.getItemSales(selectedDate, selectedStoreId),
+          dbApi.getStoreSales(selectedDate, selectedStoreId)
+        ]);
+        
+        console.log('All dashboard data fetched for store:', 
+          selectedStore?.store_name || 'All Stores');
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchAllDashboardData();
+    
     if (fetchDashboardData) {
       fetchDashboardData(selectedDate, selectedStoreId);
     }
-  }, [selectedDate, selectedStoreId, fetchDashboardData]);
+  }, [selectedDate, selectedStoreId, fetchDashboardData, selectedStore?.store_name]);
   
   const theme = useTheme();
   
@@ -100,36 +130,44 @@ const DashboardContent: React.FC = () => {
     console.log('Dashboard rendering with date:', selectedDate, 'store:', selectedStoreId);
   }, [selectedDate, selectedStoreId]);
   
-  // Fetch all dashboard data in parallel at component mount
-  const { data: salesSummaryData } = useApi(
+  // Store all API hooks with loading states
+  const salesSummaryRequest = useApi(
     () => dbApi.getSalesSummary(selectedDate, selectedStoreId),
     { deps: [selectedDate, selectedStoreId] }
   );
-  
-  const { data: menuStatsData } = useApi(
+
+  const menuStatsRequest = useApi(
     () => dbApi.getMenuStats(selectedDate, selectedStoreId),
     { deps: [selectedDate, selectedStoreId] }
   );
-  
-  const { data: categorySalesData } = useApi(
+
+  const categorySalesRequest = useApi(
     () => dbApi.getCategorySales(selectedDate, selectedStoreId),
     { deps: [selectedDate, selectedStoreId] }
   );
-  
-  const { data: transactionItemsData } = useApi(
+
+  const transactionItemsRequest = useApi(
     () => dbApi.getTransactionItems(selectedDate, selectedStoreId),
     { deps: [selectedDate, selectedStoreId] }
   );
-  
-  const { data: itemSalesData } = useApi(
+
+  const itemSalesRequest = useApi(
     () => dbApi.getItemSales(selectedDate, selectedStoreId),
     { deps: [selectedDate, selectedStoreId] }
   );
-  
-  const { data: storeSalesData } = useApi(
+
+  const storeSalesRequest = useApi(
     () => dbApi.getStoreSales(selectedDate, selectedStoreId),
     { deps: [selectedDate, selectedStoreId] }
   );
+
+  // Extract data and loading states
+  const { data: salesSummaryData, isLoading: isSalesSummaryLoading } = salesSummaryRequest;
+  const { data: menuStatsData, isLoading: isMenuStatsLoading } = menuStatsRequest;
+  const { data: categorySalesData, isLoading: isCategorySalesLoading } = categorySalesRequest;
+  const { data: transactionItemsData, isLoading: isTransactionItemsLoading } = transactionItemsRequest;
+  const { data: itemSalesData, isLoading: isItemSalesLoading } = itemSalesRequest;
+  const { data: storeSalesData, isLoading: isStoreSalesLoading } = storeSalesRequest;
   
   // Combined data object for context
   const dashboardData = {
@@ -143,13 +181,34 @@ const DashboardContent: React.FC = () => {
     selectedStoreId
   };
   
+  // Overall loading state for the dashboard
+  const isDashboardLoading = isLoading || 
+    isSalesSummaryLoading || 
+    isMenuStatsLoading || 
+    isCategorySalesLoading || 
+    isTransactionItemsLoading || 
+    isItemSalesLoading || 
+    isStoreSalesLoading;
+  
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(event.target.value);
   };
   
   return (
     <DashboardDataContext.Provider value={dashboardData}>
-      <Box sx={{ flexGrow: 1 }}>
+      <Box sx={{ flexGrow: 1, position: 'relative' }}>
+        {/* Global loading overlay */}
+        <Backdrop
+          sx={{ 
+            color: '#fff', 
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            position: 'absolute'
+          }}
+          open={isDashboardLoading}
+        >
+          <CircularProgress color="inherit" />
+        </Backdrop>
+
         {/* Page Header */}
         <Paper 
           elevation={0}
@@ -259,6 +318,7 @@ const DashboardContent: React.FC = () => {
               trendLabel="vs Previous Day"
               icon={<ReceiptIcon />}
               color="primary"
+              isLoading={isSalesSummaryLoading}
             />
           </Box>
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
@@ -269,6 +329,7 @@ const DashboardContent: React.FC = () => {
               trendLabel="vs Last Hour"
               icon={<ShoppingCartIcon />}
               color="secondary"
+              isLoading={isSalesSummaryLoading}
             />
           </Box>
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
@@ -279,6 +340,7 @@ const DashboardContent: React.FC = () => {
               trendLabel="vs Yesterday"
               icon={<GroupIcon />}
               color="success"
+              isLoading={isSalesSummaryLoading}
             />
           </Box>
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
@@ -288,12 +350,30 @@ const DashboardContent: React.FC = () => {
               suffix="items"
               icon={<StoreIcon />}
               color="warning"
+              isLoading={isMenuStatsLoading}
             />
           </Box>
         </Box>
 
         {/* Sales Chart */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 3, position: 'relative' }}>
+          {isStoreSalesLoading && (
+            <Box sx={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255,255,255,0.7)',
+              zIndex: 1,
+              borderRadius: 2
+            }}>
+              <CircularProgress />
+            </Box>
+          )}
           <DashboardSalesChart
             title={`Sales Overview${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
             subtitle="Track your restaurant's sales performance over time"
@@ -301,7 +381,24 @@ const DashboardContent: React.FC = () => {
         </Box>
 
         {/* Revenue Breakdown */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 3, position: 'relative' }}>
+          {isCategorySalesLoading && (
+            <Box sx={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255,255,255,0.7)',
+              zIndex: 1,
+              borderRadius: 2
+            }}>
+              <CircularProgress />
+            </Box>
+          )}
           <DashboardRevenueBreakdown
             title={`Revenue Breakdown${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
             subtitle="Sales distribution by food category"
@@ -310,20 +407,83 @@ const DashboardContent: React.FC = () => {
 
         {/* Orders and Popular Items */}
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
-          <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
+          <Box sx={{ width: { xs: '100%', lg: '58.33%' }, position: 'relative' }}>
+            {isTransactionItemsLoading && (
+              <Box sx={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                right: 0, 
+                bottom: 0, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                backgroundColor: 'rgba(255,255,255,0.7)',
+                zIndex: 1,
+                borderRadius: 2
+              }}>
+                <CircularProgress />
+              </Box>
+            )}
             <DashboardRecentOrders
               title={`Recent Orders${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
               subtitle="Latest orders from your customers"
               onViewAll={() => console.log('View all orders')}
             />
           </Box>
-          <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
+          <Box sx={{ width: { xs: '100%', lg: '41.67%' }, position: 'relative' }}>
+            {isItemSalesLoading && (
+              <Box sx={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                right: 0, 
+                bottom: 0, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                backgroundColor: 'rgba(255,255,255,0.7)',
+                zIndex: 1,
+                borderRadius: 2
+              }}>
+                <CircularProgress />
+              </Box>
+            )}
             <DashboardPopularItems
               title={`Popular Items${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
               subtitle="Best-selling items in your menu"
               onViewAll={() => console.log('View all menu items')}
             />
           </Box>
+        </Box>
+        
+        {/* Refresh button for manual data refresh */}
+        <Box sx={{ position: 'fixed', bottom: 20, right: 20 }}>
+          <IconButton 
+            color="primary" 
+            aria-label="refresh data"
+            size="large"
+            sx={{ 
+              bgcolor: theme.palette.background.paper,
+              boxShadow: 3,
+              '&:hover': {
+                bgcolor: theme.palette.background.paper,
+              }
+            }}
+            onClick={() => {
+              setIsLoading(true);
+              Promise.all([
+                dbApi.getSalesSummary(selectedDate, selectedStoreId),
+                dbApi.getMenuStats(selectedDate, selectedStoreId),
+                dbApi.getCategorySales(selectedDate, selectedStoreId),
+                dbApi.getTransactionItems(selectedDate, selectedStoreId),
+                dbApi.getItemSales(selectedDate, selectedStoreId),
+                dbApi.getStoreSales(selectedDate, selectedStoreId)
+              ]).finally(() => setIsLoading(false));
+            }}
+          >
+            <RefreshIcon />
+          </IconButton>
         </Box>
       </Box>
     </DashboardDataContext.Provider>
