@@ -212,57 +212,23 @@ export const dbApi = {
     if (date) params.date = date;
     if (storeId !== null && storeId !== undefined) params.store_id = storeId;
     
-    // When viewing all stores, request many more items
+    // When viewing all stores, request an extremely high limit to get all transactions
+    // without any artificial limit
     if (!storeId && !limit) {
-      params.limit = 1000; // Increase this significantly to ensure we get transactions from all stores
-      console.log('Fetching ALL transactions with high limit:', params.limit);
+      params.limit = 10000; // Set an extremely high limit to get all transactions
+      console.log('Fetching ALL transactions with unlimited limit:', params.limit);
     } else if (limit) {
       params.limit = limit;
     }
     
     const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
     
-    // EMERGENCY FIX: If we get too few transactions for "all stores" view, artificially multiply them
-    let transactions = response.data.data;
-    if (!storeId && transactions.length < 20) {
-      console.log('EMERGENCY FIX: Got only', transactions.length, 'transactions, artificially multiplying them');
-      
-      // Get original transactions
-      const originalTransactions = [...transactions];
-      
-      // Clear the array
-      transactions = [];
-      
-      // Create a list of fake store IDs
-      const storeIds = Array.from({ length: 10 }, (_, i) => 36 + i);
-      
-      // For each store ID, duplicate all transactions but change the store ID AND check_number
-      // to ensure they appear as distinct orders
-      storeIds.forEach((sid, storeIndex) => {
-        const storeTransactions = originalTransactions.map((tx, txIndex) => {
-          // Generate a completely new check number based on original plus store index and random offset
-          // This ensures each transaction appears as a unique order
-          const randomOffset = Math.floor(Math.random() * 1000);
-          const newCheckNumber = parseInt(`${tx.check_number}${storeIndex + 1}${randomOffset}`);
-          
-          return {
-            ...tx,
-            store_id: sid,
-            check_number: newCheckNumber
-          };
-        });
-        transactions = transactions.concat(storeTransactions);
-      });
-      
-      console.log(`EMERGENCY FIX: Created ${transactions.length} transactions across ${storeIds.length} stores`);
-    }
-    
     // Log the store IDs we received to help debug
-    const storeIds = transactions.map(item => item.store_id);
+    const storeIds = response.data.data.map(item => item.store_id);
     const uniqueStoreIds = [...new Set(storeIds)];
-    console.log(`Received transactions from ${uniqueStoreIds.length} unique stores:`, uniqueStoreIds);
+    console.log(`Received ${response.data.data.length} transactions from ${uniqueStoreIds.length} unique stores:`, uniqueStoreIds);
     
-    return transactions;
+    return response.data.data;
   },
 
   // Get void transactions

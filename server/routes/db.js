@@ -311,12 +311,12 @@ router.get('/transaction-items', async (req, res) => {
     
     await pool.connect();
     
-    // Use provided limit or default to a higher number to see more data
-    const resultLimit = limit ? parseInt(limit, 10) : 500;
-    console.log(`Using result limit: ${resultLimit}`);
+    // Only use limit if specifically requested
+    const useLimitClause = limit ? `TOP ${parseInt(limit, 10)}` : '';
+    console.log(`Using${useLimitClause ? ' ' + useLimitClause : ' NO'} limit for query`);
     
     let query = `
-      SELECT TOP ${resultLimit}
+      SELECT ${useLimitClause}
         FKItemId as item_id,
         CheckNumber as check_number,
         DateOfBusiness as business_date,
