@@ -24,8 +24,7 @@ import {
   Stack,
   Breadcrumbs,
   Link,
-  useTheme,
-  Grid
+  useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { format, subDays, parseISO } from 'date-fns';
@@ -34,7 +33,6 @@ import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import useApi from '../hooks/useApi';
 import { dbApi, TransactionItem } from '../services/api';
-import { useStore } from '../contexts/StoreContext';
 
 const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
   let color;
@@ -81,23 +79,20 @@ const Transactions: React.FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   
-  // Use the global store context to get the selected store
-  const { selectedStoreId, selectedStore } = useStore();
-  
-  // Fetch transactions filtered by the selected store
-  const { data: transactions, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(undefined, selectedStoreId),
-    { deps: [selectedStoreId] }
+  // Fetch transaction items from API
+  const { data: transactionItems, isLoading, error } = useApi(
+    () => dbApi.getTransactionItems(dateFilter),
+    { deps: [dateFilter] }
   );
   
   // Process transaction items into orders
   const orders = React.useMemo(() => {
-    if (!transactions || transactions.length === 0) return [];
+    if (!transactionItems || transactionItems.length === 0) return [];
 
     // Group transactions by check_number (order ID)
     const orderMap = new Map<string, Order>();
     
-    transactions.forEach(item => {
+    transactionItems.forEach(item => {
       if (!item || !item.check_number) return; // Skip invalid items
       
       const orderId = item.check_number.toString();
@@ -133,7 +128,7 @@ const Transactions: React.FC = () => {
     // Convert map to array and sort by date (most recent first)
     return Array.from(orderMap.values())
       .sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [transactions]);
+  }, [transactionItems]);
   
   // Apply filters
   useEffect(() => {
@@ -301,15 +296,12 @@ const Transactions: React.FC = () => {
         <Typography color="error">
           Error loading transaction data: {error.message}
         </Typography>
-      ) : transactions && transactions.length > 0 ? (
+      ) : filteredOrders.length === 0 ? (
+        <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
+          No transactions found
+        </Typography>
+      ) : (
         <>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Typography>
-                {transactions.length} transactions found {selectedStore ? `for ${selectedStore.store_name}` : 'across all stores'}
-              </Typography>
-            </Grid>
-          </Grid>
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -360,10 +352,6 @@ const Transactions: React.FC = () => {
             </Box>
           )}
         </>
-      ) : (
-        <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-          No transactions found {selectedStore ? `for ${selectedStore.store_name}` : 'across all stores'}
-        </Typography>
       )}
     </Box>
   );

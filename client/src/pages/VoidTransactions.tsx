@@ -29,7 +29,7 @@ import {
   useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import InfoIcon from '@mui/icons-material/Info';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -37,7 +37,6 @@ import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import useApi from '../hooks/useApi';
 import { dbApi, VoidTransaction } from '../services/api';
-import { useStore } from '../contexts/StoreContext';
 
 interface VoidTransactionDisplay {
   id: string;
@@ -80,13 +79,10 @@ const VoidTransactions: React.FC = () => {
   const [page, setPage] = useState(1);
   const [filteredTransactions, setFilteredTransactions] = useState<VoidTransactionDisplay[]>([]);
   
-  // Use the global store context
-  const { selectedStoreId, selectedStore } = useStore();
-  
-  // Fetch void transactions filtered by selected store
+  // Fetch transaction items from API
   const { data: voidTransactions, isLoading, error } = useApi(
-    () => dbApi.getVoidTransactions(undefined, selectedStoreId),
-    { deps: [selectedStoreId] }
+    () => dbApi.getVoidTransactions(),
+    {}
   );
   
   // Process void transactions into more display-friendly format

@@ -151,21 +151,15 @@ export const dbApi = {
   },
   
   // Get simple sales data without joins
-  getSimpleSales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getSimpleSales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: SalesData[]}>('/db/simple-sales', { params });
     return response.data.data;
   },
 
   // Get store sales with store information
-  getStoreSales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getStoreSales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales', { params });
     return response.data.data;
   },
@@ -197,31 +191,22 @@ export const dbApi = {
   },
 
   // Get item sales data
-  getItemSales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getItemSales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: ItemSalesData[]}>('/db/item-sales', { params });
     return response.data.data;
   },
 
   // Get transaction items
-  getTransactionItems: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getTransactionItems: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
     return response.data.data;
   },
 
   // Get void transactions
-  getVoidTransactions: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getVoidTransactions: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: VoidTransaction[]}>('/db/void-transactions', { params });
     return response.data.data;
   },
@@ -245,31 +230,22 @@ export const dbApi = {
   },
 
   // Get current sales summary for dashboard
-  getSalesSummary: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getSalesSummary: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary', { params });
     return response.data.data;
   },
   
   // Get menu items statistics
-  getMenuStats: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getMenuStats: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats', { params });
     return response.data.data;
   },
   
   // Get sales by category for revenue breakdown
-  getCategorySales: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
-    if (date) params.date = date;
-    if (storeId !== null && storeId !== undefined) params.store_id = storeId;
-    
+  getCategorySales: async (date?: string) => {
+    const params = date ? { date } : {};
     const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });
     return response.data.data;
   },

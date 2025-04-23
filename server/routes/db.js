@@ -415,10 +415,10 @@ router.get('/void-transactions', async (req, res) => {
 // Get a summary of sales, active orders, and customer metrics
 router.get('/sales-summary', async (req, res) => {
   try {
-    const { date, store_id } = req.query;
+    const { date } = req.query;
     
     // Use static cache to avoid recalculating within short time periods
-    const CACHE_KEY = `sales_summary_cache_${date || 'default'}_${store_id || 'all'}`;
+    const CACHE_KEY = `sales_summary_cache_${date || 'default'}`;
     const CACHE_TTL = 60000; // 1 minute cache
     
     if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
@@ -450,33 +450,26 @@ router.get('/sales-summary', async (req, res) => {
     const request = pool.request()
       .input('targetDate', sql.Date, targetDateStr)
       .input('previousDate', sql.Date, previousDateStr);
-      
-    // Add store ID parameter if provided
-    let storeFilter = '';
-    if (store_id) {
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
-      storeFilter = ' AND StoreId = @storeId';
-    }
     
     const query = `
       SELECT
-        (SELECT ISNULL(SUM(NetSales), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate${storeFilter}) AS targetSales,
+        (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @targetDate) AS t) AS targetSales,
         
-        (SELECT ISNULL(SUM(NetSales), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate${storeFilter}) AS previousSales,
+        (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @previousDate) AS y) AS previousSales,
         
-        (SELECT ISNULL(SUM(NumberOfChecks), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate${storeFilter}) AS targetCheckCount,
+        (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @targetDate) AS t) AS targetCheckCount,
         
-        (SELECT ISNULL(SUM(NumberOfChecks), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate${storeFilter}) AS previousCheckCount,
+        (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @previousDate) AS y) AS previousCheckCount,
         
-        (SELECT COUNT(DISTINCT CheckNumber) FROM dbo.DpvHstGndItem WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate${storeFilter ? ' AND StoreId = @storeId' : ''}) AS activeOrders,
+        (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
+         WHERE DateOfBusiness = @targetDate) AS a) AS activeOrders,
         
-        (SELECT COUNT(DISTINCT CheckNumber) FROM dbo.DpvHstGndItem WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate${storeFilter ? ' AND StoreId = @storeId' : ''}) AS previousDayOrders
+        (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
+         WHERE DateOfBusiness = @previousDate) AS p) AS previousDayOrders
     `;
     
     const result = await request.query(query);
@@ -540,51 +533,24 @@ router.get('/sales-summary', async (req, res) => {
 // Get menu items statistics
 router.get('/menu-stats', async (req, res) => {
   try {
-    // Get query parameters
-    const { date, store_id } = req.query;
-    
-    // Use static cache to avoid recalculating within short time periods
-    const CACHE_KEY = `menu_stats_cache_${date || 'default'}_${store_id || 'all'}`;
-    const CACHE_TTL = 60000; // 1 minute cache
-    
-    if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
-      return res.json(global[CACHE_KEY].data);
-    }
-    
+    // Menu stats are relatively static, so we don't need date filtering here
     await pool.connect();
     
-    // Build query with optional store filter
-    const request = pool.request();
-    let storeFilter = '';
-    
-    if (store_id) {
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
-      storeFilter = ' WHERE StoreId = @storeId';
-    }
-    
     // Optimized to use cached query plan and minimal data
-    const menuItemsResult = await request.query(`
-      SELECT 
-        COUNT(DISTINCT ItemId) as item_count
-      FROM 
-        dbo.Item WITH (NOLOCK)
-        ${storeFilter}
-    `);
+    const menuItemsResult = await pool.request()
+      .query(`
+        SELECT 
+          COUNT(DISTINCT ItemId) as item_count
+        FROM 
+          dbo.Item WITH (NOLOCK)
+      `);
 
-    const response = {
+    res.json({
       success: true,
       data: {
         menuItemCount: menuItemsResult.recordset[0].item_count || 0
       }
-    };
-    
-    // Store in cache
-    global[CACHE_KEY] = {
-      timestamp: Date.now(),
-      data: response
-    };
-    
-    res.json(response);
+    });
   } catch (err) {
     console.error('Menu stats query error:', err);
     res.status(500).json({
@@ -598,16 +564,7 @@ router.get('/menu-stats', async (req, res) => {
 // Get sales by category for revenue breakdown
 router.get('/category-sales', async (req, res) => {
   try {
-    const { date, store_id } = req.query;
-    
-    // Use static cache to avoid recalculating within short time periods
-    const CACHE_KEY = `category_sales_cache_${date || 'default'}_${store_id || 'all'}`;
-    const CACHE_TTL = 60000; // 1 minute cache
-    
-    if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
-      return res.json(global[CACHE_KEY].data);
-    }
-    
+    const { date } = req.query;
     await pool.connect();
     
     let query = `
@@ -623,19 +580,13 @@ router.get('/category-sales', async (req, res) => {
     
     const request = pool.request();
     
-    // Add date filter if provided
     if (date) {
+      // If specific date is requested
       query += ` AND CONVERT(DATE, i.DateOfBusiness) = @date`;
       request.input('date', sql.Date, new Date(date));
     } else {
       // Default to last 7 days if no date specified
       query += ` AND i.DateOfBusiness >= DATEADD(day, -7, GETDATE())`;
-    }
-    
-    // Add store filter if provided
-    if (store_id) {
-      query += ` AND i.StoreId = @storeId`;
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
     }
     
     query += `
@@ -668,18 +619,10 @@ router.get('/category-sales', async (req, res) => {
       };
     });
 
-    const response = {
+    res.json({
       success: true,
       data: formattedData
-    };
-    
-    // Store in cache
-    global[CACHE_KEY] = {
-      timestamp: Date.now(),
-      data: response
-    };
-    
-    res.json(response);
+    });
   } catch (err) {
     console.error('Category sales query error:', err);
     res.status(500).json({
