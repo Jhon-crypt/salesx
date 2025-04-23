@@ -85,7 +85,12 @@ const Transactions: React.FC = () => {
   
   // Fetch transactions filtered by the selected store
   const { data: transactions, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(dateFilter, selectedStoreId),
+    async () => {
+      console.log('Fetching transactions with store ID:', selectedStoreId);
+      const result = await dbApi.getTransactionItems(dateFilter, selectedStoreId);
+      console.log(`Received ${result?.length || 0} transactions from API`);
+      return result;
+    },
     { deps: [selectedStoreId, dateFilter] }
   );
   

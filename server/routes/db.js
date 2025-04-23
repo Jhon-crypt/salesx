@@ -307,6 +307,8 @@ router.get('/item-sales', async (req, res) => {
 router.get('/transaction-items', async (req, res) => {
   try {
     const { date, store_id, limit } = req.query;
+    console.log('Transaction items requested with:', { date, store_id, limit });
+    
     await pool.connect();
     
     // Use provided limit or default to 100
@@ -349,7 +351,16 @@ router.get('/transaction-items', async (req, res) => {
         DateOfBusiness DESC, CheckNumber DESC
     `;
     
+    console.log('Executing SQL query:', query);
+    
     const result = await request.query(query);
+    
+    console.log(`Found ${result.recordset.length} transaction items`);
+    if (result.recordset.length > 0) {
+      // Log unique check numbers to see how many actual orders we have
+      const checkNumbers = new Set(result.recordset.map(item => item.check_number));
+      console.log(`Which belong to ${checkNumbers.size} distinct orders/checks`);
+    }
     
     res.json({ 
       success: true, 
@@ -705,6 +716,41 @@ router.get('/category-sales', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error retrieving category sales data',
+      error: err.message
+    });
+  }
+});
+
+// DEBUG endpoint - Get all store IDs and transaction counts to help debug
+router.get('/debug-stores', async (req, res) => {
+  try {
+    await pool.connect();
+    
+    const query = `
+      SELECT 
+        FKStoreId as store_id,
+        COUNT(*) as transaction_count,
+        COUNT(DISTINCT CheckNumber) as order_count
+      FROM
+        dbo.DpvHstGndItem WITH (NOLOCK)
+      GROUP BY 
+        FKStoreId
+      ORDER BY 
+        transaction_count DESC
+    `;
+    
+    const result = await pool.request().query(query);
+    
+    res.json({ 
+      success: true, 
+      count: result.recordset.length,
+      data: result.recordset
+    });
+  } catch (err) {
+    console.error('Debug stores query error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error retrieving store debug data',
       error: err.message
     });
   }
