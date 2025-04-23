@@ -303,13 +303,17 @@ router.get('/item-sales', async (req, res) => {
 });
 
 // Get transaction details - optimized for performance
+// Supports limit parameter to control number of results returned
 router.get('/transaction-items', async (req, res) => {
   try {
-    const { date, store_id } = req.query;
+    const { date, store_id, limit } = req.query;
     await pool.connect();
     
+    // Use provided limit or default to 100
+    const resultLimit = limit ? parseInt(limit, 10) : 100;
+    
     let query = `
-      SELECT TOP 30
+      SELECT TOP ${resultLimit}
         FKItemId as item_id,
         CheckNumber as check_number,
         DateOfBusiness as business_date,
@@ -363,13 +367,17 @@ router.get('/transaction-items', async (req, res) => {
 });
 
 // Get void transactions based on GndVoid data dictionary
+// Supports limit parameter to control number of results returned
 router.get('/void-transactions', async (req, res) => {
   try {
-    const { date, store_id } = req.query;
+    const { date, store_id, limit } = req.query;
     await pool.connect();
     
+    // Use provided limit or default to 100
+    const resultLimit = limit ? parseInt(limit, 10) : 100;
+    
     let query = `
-      SELECT TOP 50
+      SELECT TOP ${resultLimit}
         CheckNumber as check_id,
         FKItemId as item_id,
         Price as price,
