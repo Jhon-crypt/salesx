@@ -311,8 +311,9 @@ router.get('/transaction-items', async (req, res) => {
     
     await pool.connect();
     
-    // Use provided limit or default to 100
-    const resultLimit = limit ? parseInt(limit, 10) : 100;
+    // Use provided limit or default to a higher number to see more data
+    const resultLimit = limit ? parseInt(limit, 10) : 500;
+    console.log(`Using result limit: ${resultLimit}`);
     
     let query = `
       SELECT TOP ${resultLimit}
@@ -344,6 +345,9 @@ router.get('/transaction-items', async (req, res) => {
     if (store_id) {
       query += ` AND FKStoreId = @storeId`;
       request.input('storeId', sql.Int, parseInt(store_id, 10));
+      console.log(`Filtering by store ID: ${store_id}`);
+    } else {
+      console.log('No store filter applied - should return transactions from all stores');
     }
     
     query += `

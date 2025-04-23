@@ -105,20 +105,23 @@ const Transactions: React.FC = () => {
   const orders = React.useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
 
-    // Group transactions by check_number (order ID)
+    console.log(`Processing ${transactions.length} transaction items into orders`);
+    
+    // Group transactions by check_number AND store_id 
     const orderMap = new Map<string, Order>();
     
     transactions.forEach(item => {
       if (!item || !item.check_number) return; // Skip invalid items
       
       const orderId = item.check_number.toString();
+      const storeId = item.store_id;
       
       // Format date - using business_date instead of transaction_date
       const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
       const date = new Date(dateStr);
       
-      // Create a unique map key that includes both check number and store ID
-      const mapKey = `${orderId}-${item.store_id}`;
+      // Create a unique map key that combines order ID and store ID
+      const mapKey = `${orderId}-${storeId}`;
       
       if (!orderMap.has(mapKey)) {
         orderMap.set(mapKey, {
@@ -129,7 +132,7 @@ const Transactions: React.FC = () => {
           status: 'Completed', // Default status
           date: date,
           dateFormatted: format(date, 'MMM dd, yyyy h:mm a'),
-          storeId: item.store_id
+          storeId: storeId
         });
       }
       
@@ -144,6 +147,9 @@ const Transactions: React.FC = () => {
       
       order.total += itemPrice;
     });
+    
+    // Log how many orders we created
+    console.log(`Created ${orderMap.size} unique orders from transactions`);
     
     // Convert map to array and sort by date (most recent first)
     return Array.from(orderMap.values())
@@ -399,6 +405,25 @@ const Transactions: React.FC = () => {
                     ? [...new Set(transactions.map(t => t.store_id))].join(', ') 
                     : 'None'
                 }</Typography>
+                
+                {transactions && transactions.length > 0 && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="body2" fontWeight="medium">Transaction Breakdown by Store:</Typography>
+                    {(() => {
+                      // Count transactions by store
+                      const storeCount = transactions.reduce((acc, t) => {
+                        acc[t.store_id] = (acc[t.store_id] || 0) + 1;
+                        return acc;
+                      }, {} as Record<number, number>);
+                      
+                      return Object.entries(storeCount).map(([storeId, count]) => (
+                        <Typography key={storeId} variant="body2" sx={{ ml: 2 }}>
+                          Store #{storeId}: {count} transactions
+                        </Typography>
+                      ));
+                    })()}
+                  </Box>
+                )}
               </Box>
               
               <Divider />

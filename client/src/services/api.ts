@@ -212,14 +212,21 @@ export const dbApi = {
     if (date) params.date = date;
     if (storeId !== null && storeId !== undefined) params.store_id = storeId;
     
-    // When viewing all stores, request more items
+    // When viewing all stores, request many more items
     if (!storeId && !limit) {
-      params.limit = 100;
+      params.limit = 1000; // Increase this significantly to ensure we get transactions from all stores
+      console.log('Fetching ALL transactions with high limit:', params.limit);
     } else if (limit) {
       params.limit = limit;
     }
     
     const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
+    
+    // Log the store IDs we received to help debug
+    const storeIds = response.data.data.map(item => item.store_id);
+    const uniqueStoreIds = [...new Set(storeIds)];
+    console.log(`Received transactions from ${uniqueStoreIds.length} unique stores:`, uniqueStoreIds);
+    
     return response.data.data;
   },
 
