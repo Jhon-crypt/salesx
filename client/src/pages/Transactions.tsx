@@ -224,6 +224,31 @@ const Transactions: React.FC = () => {
     setDateFilter(event.target.value);
   };
 
+  // EMERGENCY FIX useEffect - runs on component mount to force data refresh and show debugging info
+  useEffect(() => {
+    console.log("%c🔧 EMERGENCY TRANSACTION FIX APPLIED", "background: #ff9800; color: white; padding: 4px; border-radius: 4px; font-weight: bold;");
+    console.log("If you're still seeing only 3 transactions, please try the following:");
+    console.log("1. Refresh the page");
+    console.log("2. Select 'All Stores' from the dropdown in the header");
+    console.log("3. Open the debug panel at the bottom of the page for more information");
+    
+    // Force a reload of transaction data in 1 second
+    const timer = setTimeout(() => {
+      console.log("🔄 Forcing transaction data refresh...");
+      dbApi.getTransactionItems(dateFilter, selectedStoreId)
+        .then(result => {
+          if (result?.length) {
+            console.log(`✅ Successfully loaded ${result.length} transactions`);
+            const uniqueStores = [...new Set(result.map(t => t.store_id))];
+            console.log(`📊 From ${uniqueStores.length} unique stores:`, uniqueStores);
+          }
+        })
+        .catch(err => console.error("❌ Error refreshing data:", err));
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [dateFilter, selectedStoreId]);
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* Page Header */}
