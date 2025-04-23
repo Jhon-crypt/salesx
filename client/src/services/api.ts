@@ -236,12 +236,21 @@ export const dbApi = {
       // Create a list of fake store IDs
       const storeIds = Array.from({ length: 10 }, (_, i) => 36 + i);
       
-      // For each store ID, duplicate all transactions but change the store ID
-      storeIds.forEach(sid => {
-        const storeTransactions = originalTransactions.map(tx => ({
-          ...tx,
-          store_id: sid
-        }));
+      // For each store ID, duplicate all transactions but change the store ID AND check_number
+      // to ensure they appear as distinct orders
+      storeIds.forEach((sid, storeIndex) => {
+        const storeTransactions = originalTransactions.map((tx, txIndex) => {
+          // Generate a completely new check number based on original plus store index and random offset
+          // This ensures each transaction appears as a unique order
+          const randomOffset = Math.floor(Math.random() * 1000);
+          const newCheckNumber = parseInt(`${tx.check_number}${storeIndex + 1}${randomOffset}`);
+          
+          return {
+            ...tx,
+            store_id: sid,
+            check_number: newCheckNumber
+          };
+        });
         transactions = transactions.concat(storeTransactions);
       });
       
