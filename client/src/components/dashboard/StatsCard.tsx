@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, Typography, Box, SvgIconProps, useTheme, Skeleton } from '@mui/material';
+import { Card, CardContent, Typography, Box, SvgIconProps, useTheme } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
@@ -13,7 +13,6 @@ interface StatsCardProps {
   trendLabel?: string;
   icon: React.ReactElement<SvgIconProps>;
   color?: 'primary' | 'secondary' | 'success' | 'warning' | 'tertiary' | 'danger';
-  isLoading?: boolean;
 }
 
 const IconWrapper = styled(Box, {
@@ -45,7 +44,6 @@ const StatsCard: React.FC<StatsCardProps> = ({
   trendLabel,
   icon,
   color = 'primary',
-  isLoading = false,
 }) => {
   const theme = useTheme();
 
@@ -88,30 +86,16 @@ const StatsCard: React.FC<StatsCardProps> = ({
     <StyledCard>
       <CardContent sx={{ height: '100%', padding: theme.spacing(2) }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          {isLoading ? (
-            <Skeleton variant="rounded" width={56} height={56} sx={{ mr: 2 }} />
-          ) : (
-            <IconWrapper bgColor={getIconBackgroundColor()}>
-              {React.cloneElement(icon, { fontSize: 'medium' })}
-            </IconWrapper>
-          )}
-          
+          <IconWrapper bgColor={getIconBackgroundColor()}>
+            {React.cloneElement(icon, { fontSize: 'medium' })}
+          </IconWrapper>
           <Box>
-            {isLoading ? (
-              <>
-                <Skeleton width={100} height={24} />
-                <Skeleton width={120} height={36} />
-              </>
-            ) : (
-              <>
-                <Typography variant="subtitle2" color="text.secondary">
-                  {title}
-                </Typography>
-                <Typography variant="h5" fontWeight="bold">
-                  {displayPrefix}{value}{displaySuffix}
-                </Typography>
-              </>
-            )}
+            <Typography variant="subtitle2" color="text.secondary">
+              {title}
+            </Typography>
+            <Typography variant="h5" fontWeight="bold">
+              {displayPrefix}{value}{displaySuffix}
+            </Typography>
           </Box>
         </Box>
         
@@ -123,20 +107,14 @@ const StatsCard: React.FC<StatsCardProps> = ({
               color: getTrendColor(),
             }}
           >
-            {isLoading ? (
-              <Skeleton width={80} height={24} />
-            ) : (
-              <>
-                {getTrendIcon()}
-                <Typography variant="body2" component="span" sx={{ ml: 0.5 }}>
-                  {trend > 0 ? '+' : ''}{trend}%
-                </Typography>
-                {trendLabel && (
-                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                    {trendLabel}
-                  </Typography>
-                )}
-              </>
+            {getTrendIcon()}
+            <Typography variant="body2" component="span" sx={{ ml: 0.5 }}>
+              {trend > 0 ? '+' : ''}{trend}%
+            </Typography>
+            {trendLabel && (
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                {trendLabel}
+              </Typography>
             )}
           </Box>
         )}

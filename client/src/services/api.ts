@@ -250,7 +250,6 @@ export const dbApi = {
     if (date) params.date = date;
     if (storeId !== null && storeId !== undefined) params.store_id = storeId;
     
-    console.log('Sales Summary API params:', params);
     const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary', { params });
     return response.data.data;
   },
@@ -261,7 +260,6 @@ export const dbApi = {
     if (date) params.date = date;
     if (storeId !== null && storeId !== undefined) params.store_id = storeId;
     
-    console.log('Menu Stats API params:', params);
     const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats', { params });
     return response.data.data;
   },
@@ -272,7 +270,6 @@ export const dbApi = {
     if (date) params.date = date;
     if (storeId !== null && storeId !== undefined) params.store_id = storeId;
     
-    console.log('Category Sales API params:', params);
     const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });
     return response.data.data;
   },

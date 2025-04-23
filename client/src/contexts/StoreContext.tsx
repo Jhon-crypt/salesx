@@ -41,45 +41,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   // Update selectedStore object when stores are loaded or selectedStoreId changes
   useEffect(() => {
-    console.log('StoreContext: stores loaded, count:', stores.length);
-    console.log('StoreContext: current selectedStoreId:', selectedStoreId);
-    
     if (stores.length > 0 && selectedStoreId !== null) {
       const store = stores.find(s => s.store_id === selectedStoreId);
-      console.log('StoreContext: found store:', store?.store_name || 'Not Found');
       setSelectedStore(store || null);
-      
-      // Update document title to reflect selected store
-      const storeName = store?.store_name || `Store ${selectedStoreId}`;
-      document.title = `SalesX - ${storeName}`;
-    } else if (selectedStoreId === null) {
+    } else {
       setSelectedStore(null);
-      document.title = 'SalesX - All Stores';
     }
   }, [stores, selectedStoreId]);
   
   // Handle store selection change
   const handleStoreChange = (storeId: number | null) => {
-    console.log('Store context changing to store ID:', storeId);
-    
-    // Set the store ID in state
     setSelectedStoreId(storeId);
-    
-    // Update localStorage
-    if (storeId === null) {
-      localStorage.removeItem('selectedStoreId');
-    } else {
-      localStorage.setItem('selectedStoreId', storeId.toString());
-    }
-    
-    // Find and set the store object if a store ID is selected
-    if (storeId !== null && stores.length > 0) {
-      const store = stores.find(s => s.store_id === storeId);
-      setSelectedStore(store || null);
-    } else {
-      setSelectedStore(null);
-    }
-    
     // Update document title to reflect selected store
     if (storeId === null) {
       document.title = 'SalesX - All Stores';
@@ -87,9 +59,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const storeName = stores.find(s => s.store_id === storeId)?.store_name || `Store ${storeId}`;
       document.title = `SalesX - ${storeName}`;
     }
-    
-    console.log('Store context updated:', storeId, 
-      stores.find(s => s.store_id === storeId)?.store_name || 'All Stores');
   };
   
   return (
