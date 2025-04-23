@@ -19,12 +19,15 @@ import useApi from '../../hooks/useApi';
 import { dbApi, TransactionItem } from '../../services/api';
 import { format } from 'date-fns';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
+import { useTheme } from '@mui/material/styles';
 
 interface RecentOrdersProps {
   title: string;
   subtitle?: string;
   onViewAll?: () => void;
   preloadedData?: TransactionItem[];
+  date?: string;
+  storeId?: number | null;
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -108,12 +111,19 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
   title,
   subtitle,
   onViewAll,
-  preloadedData
+  preloadedData,
+  date,
+  storeId
 }) => {
+  const theme = useTheme();
+  
   // Fetch transaction items from API only if not provided via props
   const { data: fetchedTransactionItems, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(),
-    { skipFetch: !!preloadedData }
+    () => dbApi.getTransactionItems(date, storeId),
+    { 
+      skipFetch: !!preloadedData,
+      deps: [date, storeId]
+    }
   );
   
   // Use preloaded data if available, otherwise use fetched data

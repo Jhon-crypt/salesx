@@ -30,6 +30,7 @@ const DashboardDataContext = React.createContext<{
   itemSales: ItemSalesData[] | null;
   storeSales: SalesData[] | null;
   selectedStoreId: number | null;
+  selectedDate: string;
 }>({
   salesSummary: null,
   menuStats: null,
@@ -37,28 +38,69 @@ const DashboardDataContext = React.createContext<{
   transactionItems: null,
   itemSales: null,
   storeSales: null,
-  selectedStoreId: null
+  selectedStoreId: null,
+  selectedDate: ''
 });
 
 // Enhanced components that use data from context rather than fetching themselves
 const DashboardSalesChart: React.FC<{ title: string; subtitle?: string }> = (props) => {
   const { storeSales } = React.useContext(DashboardDataContext);
-  return <SalesChart {...props} preloadedData={storeSales || undefined} />;
+  const { selectedStoreId } = useStore();
+  const dashboardContent = React.useContext(DashboardDataContext);
+  
+  return (
+    <SalesChart 
+      {...props} 
+      preloadedData={storeSales || undefined} 
+      date={dashboardContent.selectedDate}
+      storeId={selectedStoreId}
+    />
+  );
 };
 
 const DashboardRevenueBreakdown: React.FC<{ title: string; subtitle?: string }> = (props) => {
   const { categorySales } = React.useContext(DashboardDataContext);
-  return <RevenueBreakdown {...props} preloadedData={categorySales || undefined} />;
+  const { selectedStoreId } = useStore();
+  const dashboardContent = React.useContext(DashboardDataContext);
+  
+  return (
+    <RevenueBreakdown 
+      {...props} 
+      preloadedData={categorySales || undefined} 
+      date={dashboardContent.selectedDate}
+      storeId={selectedStoreId}
+    />
+  );
 };
 
 const DashboardRecentOrders: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
   const { transactionItems } = React.useContext(DashboardDataContext);
-  return <RecentOrders {...props} preloadedData={transactionItems || undefined} />;
+  const { selectedStoreId } = useStore();
+  const dashboardContent = React.useContext(DashboardDataContext);
+  
+  return (
+    <RecentOrders 
+      {...props} 
+      preloadedData={transactionItems || undefined} 
+      date={dashboardContent.selectedDate}
+      storeId={selectedStoreId}
+    />
+  );
 };
 
 const DashboardPopularItems: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
   const { itemSales } = React.useContext(DashboardDataContext);
-  return <PopularItems {...props} preloadedData={itemSales || undefined} />;
+  const { selectedStoreId } = useStore();
+  const dashboardContent = React.useContext(DashboardDataContext);
+  
+  return (
+    <PopularItems 
+      {...props} 
+      preloadedData={itemSales || undefined} 
+      date={dashboardContent.selectedDate}
+      storeId={selectedStoreId}
+    />
+  );
 };
 
 const DashboardContent: React.FC = () => {
@@ -126,7 +168,8 @@ const DashboardContent: React.FC = () => {
     transactionItems: transactionItemsData || null,
     itemSales: itemSalesData || null,
     storeSales: storeSalesData || null,
-    selectedStoreId
+    selectedStoreId,
+    selectedDate
   };
   
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
