@@ -96,12 +96,19 @@ const Transactions: React.FC = () => {
       console.log('Fetching transactions with store ID:', selectedStoreId);
       const result = await dbApi.getTransactionItems(dateFilter, selectedStoreId);
       console.log(`Received ${result?.length || 0} transactions from API`);
+      
+      // EMERGENCY FIX: Log unique store IDs to verify we're getting multiple stores
+      if (result?.length) {
+        const uniqueStores = [...new Set(result.map(t => t.store_id))];
+        console.log(`Transactions come from ${uniqueStores.length} unique stores:`, uniqueStores);
+      }
+      
       return result;
     },
     { deps: [selectedStoreId, dateFilter] }
   );
   
-  // Process transaction items into orders
+  // Process transaction items into orders with more distinctive display properties
   const orders = React.useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
 
@@ -120,13 +127,14 @@ const Transactions: React.FC = () => {
       const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
       const date = new Date(dateStr);
       
-      // Create a unique map key that combines order ID and store ID
+      // Create a unique map key that combines order ID and store ID - CRITICAL for distinguishing orders
       const mapKey = `${orderId}-${storeId}`;
       
       if (!orderMap.has(mapKey)) {
+        // Always include store ID in customer name for clarity, regardless of filter
         orderMap.set(mapKey, {
           id: orderId,
-          customer: `Guest ${orderId.slice(-4)}`,
+          customer: `Guest ${orderId.slice(-4)} (Store #${storeId})`,
           items: [],
           total: 0,
           status: 'Completed', // Default status
@@ -348,7 +356,7 @@ const Transactions: React.FC = () => {
                       #{order.id}
                     </TableCell>
                     <TableCell>
-                      {order.customer} {selectedStoreId ? '' : `(Store #${order.storeId})`}
+                      {order.customer}
                     </TableCell>
                     <TableCell>
                       {order.items.length > 2
@@ -399,8 +407,10 @@ const Transactions: React.FC = () => {
                 <Typography variant="subtitle2">Selected Store ID: {selectedStoreId || 'All Stores'}</Typography>
                 <Typography variant="subtitle2">Date Filter: {dateFilter}</Typography>
                 <Typography variant="body2">Raw Transactions Count: {transactions?.length || 0}</Typography>
+                <Typography variant="body2">Processed Orders Count: {orders.length}</Typography>
                 <Typography variant="body2">Filtered Orders Count: {filteredOrders.length}</Typography>
-                <Typography variant="body2">Unique Store IDs in current data: {
+                <Typography variant="body2" fontWeight="bold" color="primary.main">
+                  Unique Store IDs in current data: {
                   transactions?.length 
                     ? [...new Set(transactions.map(t => t.store_id))].join(', ') 
                     : 'None'
