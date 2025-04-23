@@ -207,20 +207,34 @@ export const dbApi = {
   },
 
   // Get transaction items
-  getTransactionItems: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
+  getTransactionItems: async (date?: string, storeId?: number | null, limit?: number) => {
+    const params: { date?: string; store_id?: number; limit?: number } = {};
     if (date) params.date = date;
     if (storeId !== null && storeId !== undefined) params.store_id = storeId;
+    
+    // When viewing all stores, request more items
+    if (!storeId && !limit) {
+      params.limit = 100;
+    } else if (limit) {
+      params.limit = limit;
+    }
     
     const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
     return response.data.data;
   },
 
   // Get void transactions
-  getVoidTransactions: async (date?: string, storeId?: number | null) => {
-    const params: { date?: string; store_id?: number } = {};
+  getVoidTransactions: async (date?: string, storeId?: number | null, limit?: number) => {
+    const params: { date?: string; store_id?: number; limit?: number } = {};
     if (date) params.date = date;
     if (storeId !== null && storeId !== undefined) params.store_id = storeId;
+    
+    // When viewing all stores, request more items
+    if (!storeId && !limit) {
+      params.limit = 100;
+    } else if (limit) {
+      params.limit = limit;
+    }
     
     const response = await api.get<{success: boolean, data: VoidTransaction[]}>('/db/void-transactions', { params });
     return response.data.data;
