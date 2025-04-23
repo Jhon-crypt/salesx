@@ -756,4 +756,78 @@ router.get('/debug-stores', async (req, res) => {
   }
 });
 
+// DEBUG endpoint - Get a sampling of raw transactions with no filtering
+router.get('/debug-transactions', async (req, res) => {
+  try {
+    await pool.connect();
+    
+    const query = `
+      SELECT TOP 20
+        FKItemId as item_id,
+        CheckNumber as check_number,
+        DateOfBusiness as business_date,
+        Price as price,
+        Quantity as quantity,
+        Type as record_type,
+        FKCategoryId as category_id,
+        FKStoreId as store_id
+      FROM
+        dbo.DpvHstGndItem WITH (NOLOCK)
+      ORDER BY
+        DateOfBusiness DESC, CheckNumber DESC
+    `;
+    
+    const result = await pool.request().query(query);
+    
+    res.json({ 
+      success: true, 
+      count: result.recordset.length,
+      data: result.recordset
+    });
+  } catch (err) {
+    console.error('Debug transactions query error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error retrieving transaction debug data',
+      error: err.message
+    });
+  }
+});
+
+// DEBUG endpoint - Get transaction counts by date and store
+router.get('/debug-transaction-counts', async (req, res) => {
+  try {
+    await pool.connect();
+    
+    const query = `
+      SELECT 
+        CONVERT(DATE, DateOfBusiness) as date,
+        FKStoreId as store_id,
+        COUNT(*) as transaction_count,
+        COUNT(DISTINCT CheckNumber) as order_count
+      FROM
+        dbo.DpvHstGndItem WITH (NOLOCK)
+      GROUP BY 
+        CONVERT(DATE, DateOfBusiness), FKStoreId
+      ORDER BY 
+        date DESC, store_id ASC
+    `;
+    
+    const result = await pool.request().query(query);
+    
+    res.json({ 
+      success: true, 
+      count: result.recordset.length,
+      data: result.recordset
+    });
+  } catch (err) {
+    console.error('Debug transaction counts query error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error retrieving transaction counts data',
+      error: err.message
+    });
+  }
+});
+
 module.exports = router; 

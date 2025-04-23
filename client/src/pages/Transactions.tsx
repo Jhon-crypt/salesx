@@ -24,13 +24,19 @@ import {
   Stack,
   Breadcrumbs,
   Link,
-  useTheme
+  useTheme,
+  Button,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Divider
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { format, subDays, parseISO } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import useApi from '../hooks/useApi';
 import { dbApi } from '../services/api';
 import { useStore } from '../contexts/StoreContext';
@@ -366,6 +372,54 @@ const Transactions: React.FC = () => {
         <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
           No transactions found {selectedStore ? `for ${selectedStore.store_name}` : 'across all stores'}
         </Typography>
+      )}
+      
+      {/* Debug Panel - Only shown in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <Accordion sx={{ mt: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle2" color="primary">Debug Information (Development Only)</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle2">Selected Store ID: {selectedStoreId || 'All Stores'}</Typography>
+                <Typography variant="subtitle2">Date Filter: {dateFilter}</Typography>
+                <Typography variant="body2">Raw Transactions Count: {transactions?.length || 0}</Typography>
+                <Typography variant="body2">Filtered Orders Count: {filteredOrders.length}</Typography>
+              </Box>
+              
+              <Divider />
+              
+              <Box>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={() => window.open('/api/db/debug-stores', '_blank')}
+                  sx={{ mr: 1, mb: 1 }}
+                >
+                  View All Stores
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={() => window.open('/api/db/debug-transactions', '_blank')}
+                  sx={{ mr: 1, mb: 1 }}
+                >
+                  View Raw Transactions
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={() => window.open('/api/db/debug-transaction-counts', '_blank')}
+                  sx={{ mr: 1, mb: 1 }}
+                >
+                  View Transaction Counts
+                </Button>
+              </Box>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
       )}
     </Box>
   );
