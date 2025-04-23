@@ -14,10 +14,13 @@ import Stores from './pages/Stores';
 import { isAuthenticated, logoutUser, getUserData } from './utils/authUtils';
 import { StoreProvider } from './contexts/StoreContext';
 
+// Define user data type
+type UserData = Record<string, unknown>;
+
 // Authentication context with improved security
 interface AuthContextType {
   isAuthenticated: boolean;
-  userData: any | null;
+  userData: UserData | null;
   login: () => void;
   logout: () => void;
 }
