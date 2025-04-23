@@ -74,6 +74,7 @@ interface Order {
   status: string;
   date: Date;
   dateFormatted: string;
+  storeId: number;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -116,19 +117,23 @@ const Transactions: React.FC = () => {
       const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
       const date = new Date(dateStr);
       
-      if (!orderMap.has(orderId)) {
-        orderMap.set(orderId, {
+      // Create a unique map key that includes both check number and store ID
+      const mapKey = `${orderId}-${item.store_id}`;
+      
+      if (!orderMap.has(mapKey)) {
+        orderMap.set(mapKey, {
           id: orderId,
           customer: `Guest ${orderId.slice(-4)}`,
           items: [],
           total: 0,
           status: 'Completed', // Default status
           date: date,
-          dateFormatted: format(date, 'MMM dd, yyyy h:mm a')
+          dateFormatted: format(date, 'MMM dd, yyyy h:mm a'),
+          storeId: item.store_id
         });
       }
       
-      const order = orderMap.get(orderId)!;
+      const order = orderMap.get(mapKey)!;
       // Use item_id if menu_item_name is not available
       const itemName = item.menu_item_name || `Item #${item.item_id}`;
       order.items.push(itemName);
@@ -336,7 +341,9 @@ const Transactions: React.FC = () => {
                     <TableCell component="th" scope="row">
                       #{order.id}
                     </TableCell>
-                    <TableCell>{order.customer}</TableCell>
+                    <TableCell>
+                      {order.customer} {selectedStoreId ? '' : `(Store #${order.storeId})`}
+                    </TableCell>
                     <TableCell>
                       {order.items.length > 2
                         ? `${order.items[0]}, ${order.items[1]} +${order.items.length - 2} more`
@@ -387,6 +394,11 @@ const Transactions: React.FC = () => {
                 <Typography variant="subtitle2">Date Filter: {dateFilter}</Typography>
                 <Typography variant="body2">Raw Transactions Count: {transactions?.length || 0}</Typography>
                 <Typography variant="body2">Filtered Orders Count: {filteredOrders.length}</Typography>
+                <Typography variant="body2">Unique Store IDs in current data: {
+                  transactions?.length 
+                    ? [...new Set(transactions.map(t => t.store_id))].join(', ') 
+                    : 'None'
+                }</Typography>
               </Box>
               
               <Divider />
