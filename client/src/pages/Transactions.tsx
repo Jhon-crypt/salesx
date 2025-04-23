@@ -24,8 +24,7 @@ import {
   Stack,
   Breadcrumbs,
   Link,
-  useTheme,
-  Grid
+  useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { format, subDays, parseISO } from 'date-fns';
@@ -33,7 +32,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import useApi from '../hooks/useApi';
-import { dbApi, TransactionItem } from '../services/api';
+import { dbApi } from '../services/api';
 import { useStore } from '../contexts/StoreContext';
 
 const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
@@ -86,8 +85,8 @@ const Transactions: React.FC = () => {
   
   // Fetch transactions filtered by the selected store
   const { data: transactions, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(undefined, selectedStoreId),
-    { deps: [selectedStoreId] }
+    () => dbApi.getTransactionItems(dateFilter, selectedStoreId),
+    { deps: [selectedStoreId, dateFilter] }
   );
   
   // Process transaction items into orders
@@ -303,13 +302,11 @@ const Transactions: React.FC = () => {
         </Typography>
       ) : transactions && transactions.length > 0 ? (
         <>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Typography>
-                {transactions.length} transactions found {selectedStore ? `for ${selectedStore.store_name}` : 'across all stores'}
-              </Typography>
-            </Grid>
-          </Grid>
+          <Box sx={{ mb: 2 }}>
+            <Typography>
+              {filteredOrders.length} transactions found {selectedStore ? `for ${selectedStore.store_name}` : 'across all stores'}
+            </Typography>
+          </Box>
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
