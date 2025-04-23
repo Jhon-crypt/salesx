@@ -18,6 +18,9 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import useApi from '../hooks/useApi';
 import { dbApi, SalesSummary, MenuStats, CategorySales, TransactionItem, ItemSalesData, SalesData } from '../services/api';
 
+// Store Context
+import { useStore } from '../contexts/StoreContext';
+
 // Global data context to share data between components
 const DashboardDataContext = React.createContext<{
   salesSummary: SalesSummary | null;
@@ -69,7 +72,9 @@ const DashboardContent: React.FC = () => {
 
   // State for date picker
   const [selectedDate, setSelectedDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+  
+  // Get store from global context instead of local state
+  const { selectedStoreId, selectedStore } = useStore();
 
   // Get dashboard data from context
   const { 
@@ -140,10 +145,6 @@ const DashboardContent: React.FC = () => {
   
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(event.target.value);
-  };
-  
-  const handleStoreChange = (storeId: number | null) => {
-    setSelectedStoreId(storeId);
   };
   
   return (
@@ -221,8 +222,7 @@ const DashboardContent: React.FC = () => {
               
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 <StoreSelector
-                  value={selectedStoreId}
-                  onChange={handleStoreChange}
+                  useGlobalContext={true}
                   width={200}
                   label="Select Store"
                 />
@@ -243,7 +243,7 @@ const DashboardContent: React.FC = () => {
             </Box>
             
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {formattedDate} {selectedStoreId !== null ? ` • Store ${selectedStoreId}` : ' • All Stores'}
+              {formattedDate} {selectedStore ? ` • ${selectedStore.store_name}` : ' • All Stores'}
             </Typography>
           </Stack>
         </Paper>
@@ -295,7 +295,7 @@ const DashboardContent: React.FC = () => {
         {/* Sales Chart */}
         <Box sx={{ mb: 3 }}>
           <DashboardSalesChart
-            title="Sales Overview"
+            title={`Sales Overview${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
             subtitle="Track your restaurant's sales performance over time"
           />
         </Box>
@@ -303,7 +303,7 @@ const DashboardContent: React.FC = () => {
         {/* Revenue Breakdown */}
         <Box sx={{ mb: 3 }}>
           <DashboardRevenueBreakdown
-            title="Revenue Breakdown"
+            title={`Revenue Breakdown${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
             subtitle="Sales distribution by food category"
           />
         </Box>
@@ -312,14 +312,14 @@ const DashboardContent: React.FC = () => {
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
           <Box sx={{ width: { xs: '100%', lg: '58.33%' }}}>
             <DashboardRecentOrders
-              title="Recent Orders"
+              title={`Recent Orders${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
               subtitle="Latest orders from your customers"
               onViewAll={() => console.log('View all orders')}
             />
           </Box>
           <Box sx={{ width: { xs: '100%', lg: '41.67%' }}}>
             <DashboardPopularItems
-              title="Popular Items"
+              title={`Popular Items${selectedStore ? ` - ${selectedStore.store_name}` : ''}`}
               subtitle="Best-selling items in your menu"
               onViewAll={() => console.log('View all menu items')}
             />
