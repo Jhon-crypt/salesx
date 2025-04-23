@@ -305,7 +305,7 @@ router.get('/item-sales', async (req, res) => {
 // Get transaction details - optimized for performance
 router.get('/transaction-items', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -334,6 +334,12 @@ router.get('/transaction-items', async (req, res) => {
       query += ` AND DateOfBusiness >= DATEADD(day, -3, GETDATE())`;
     }
     
+    // Add store filter if provided
+    if (store_id) {
+      query += ` AND FKStoreId = @storeId`;
+      request.input('storeId', sql.Int, parseInt(store_id, 10));
+    }
+    
     query += `
       ORDER BY
         DateOfBusiness DESC, CheckNumber DESC
@@ -359,7 +365,7 @@ router.get('/transaction-items', async (req, res) => {
 // Get void transactions based on GndVoid data dictionary
 router.get('/void-transactions', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -388,6 +394,12 @@ router.get('/void-transactions', async (req, res) => {
     } else {
       // Default to last 30 days if no date specified
       query += ` AND DateOfBusiness >= DATEADD(day, -30, GETDATE())`;
+    }
+    
+    // Add store filter if provided
+    if (store_id) {
+      query += ` AND FKStoreId = @storeId`;
+      request.input('storeId', sql.Int, parseInt(store_id, 10));
     }
     
     query += `
