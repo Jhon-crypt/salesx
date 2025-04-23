@@ -24,22 +24,15 @@ import {
   Stack,
   Breadcrumbs,
   Link,
-  useTheme,
-  Button,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Divider
+  useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { format, subDays, parseISO } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import useApi from '../hooks/useApi';
-import { dbApi } from '../services/api';
-import { useStore } from '../contexts/StoreContext';
+import { dbApi, TransactionItem } from '../services/api';
 
 const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
   let color;
@@ -74,7 +67,6 @@ interface Order {
   status: string;
   date: Date;
   dateFormatted: string;
-  storeId: number;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -87,65 +79,41 @@ const Transactions: React.FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   
-  // Use the global store context to get the selected store
-  const { selectedStoreId, selectedStore } = useStore();
-  
-  // Fetch transactions filtered by the selected store
-  const { data: transactions, isLoading, error } = useApi(
-    async () => {
-      console.log('Fetching transactions with store ID:', selectedStoreId);
-      const result = await dbApi.getTransactionItems(dateFilter, selectedStoreId);
-      console.log(`Received ${result?.length || 0} transactions from API`);
-      
-      // EMERGENCY FIX: Log unique store IDs to verify we're getting multiple stores
-      if (result?.length) {
-        const uniqueStores = [...new Set(result.map(t => t.store_id))];
-        console.log(`Transactions come from ${uniqueStores.length} unique stores:`, uniqueStores);
-      }
-      
-      return result;
-    },
-    { deps: [selectedStoreId, dateFilter] }
+  // Fetch transaction items from API
+  const { data: transactionItems, isLoading, error } = useApi(
+    () => dbApi.getTransactionItems(dateFilter),
+    { deps: [dateFilter] }
   );
   
-  // Process transaction items into orders with more distinctive display properties
+  // Process transaction items into orders
   const orders = React.useMemo(() => {
-    if (!transactions || transactions.length === 0) return [];
+    if (!transactionItems || transactionItems.length === 0) return [];
 
-    console.log(`Processing ${transactions.length} transaction items into orders`);
-    
-    // Group transactions by check_number AND store_id 
+    // Group transactions by check_number (order ID)
     const orderMap = new Map<string, Order>();
     
-    transactions.forEach(item => {
+    transactionItems.forEach(item => {
       if (!item || !item.check_number) return; // Skip invalid items
       
       const orderId = item.check_number.toString();
-      const storeId = item.store_id;
       
       // Format date - using business_date instead of transaction_date
       const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
       const date = new Date(dateStr);
       
-      // Create a unique map key that combines order ID and store ID - CRITICAL for distinguishing orders
-      // When we're in "All Stores" mode, we want distinct orders for each store
-      const mapKey = `${orderId}-${storeId}`;
-      
-      if (!orderMap.has(mapKey)) {
-        // Always include store ID in customer name for clarity, regardless of filter
-        orderMap.set(mapKey, {
+      if (!orderMap.has(orderId)) {
+        orderMap.set(orderId, {
           id: orderId,
-          customer: `Guest ${orderId.slice(-4)} (Store #${storeId})`,
+          customer: `Guest ${orderId.slice(-4)}`,
           items: [],
           total: 0,
           status: 'Completed', // Default status
           date: date,
-          dateFormatted: format(date, 'MMM dd, yyyy h:mm a'),
-          storeId: storeId
+          dateFormatted: format(date, 'MMM dd, yyyy h:mm a')
         });
       }
       
-      const order = orderMap.get(mapKey)!;
+      const order = orderMap.get(orderId)!;
       // Use item_id if menu_item_name is not available
       const itemName = item.menu_item_name || `Item #${item.item_id}`;
       order.items.push(itemName);
@@ -157,13 +125,10 @@ const Transactions: React.FC = () => {
       order.total += itemPrice;
     });
     
-    // Log how many orders we created
-    console.log(`Created ${orderMap.size} unique orders from transactions`);
-    
     // Convert map to array and sort by date (most recent first)
     return Array.from(orderMap.values())
       .sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [transactions]);
+  }, [transactionItems]);
   
   // Apply filters
   useEffect(() => {
@@ -224,31 +189,6 @@ const Transactions: React.FC = () => {
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setDateFilter(event.target.value);
   };
-
-  // EMERGENCY FIX useEffect - runs on component mount to force data refresh and show debugging info
-  useEffect(() => {
-    console.log("%c🔧 EMERGENCY TRANSACTION FIX APPLIED", "background: #ff9800; color: white; padding: 4px; border-radius: 4px; font-weight: bold;");
-    console.log("If you're still seeing only 3 transactions, please try the following:");
-    console.log("1. Refresh the page");
-    console.log("2. Select 'All Stores' from the dropdown in the header");
-    console.log("3. Open the debug panel at the bottom of the page for more information");
-    
-    // Force a reload of transaction data in 1 second
-    const timer = setTimeout(() => {
-      console.log("🔄 Forcing transaction data refresh...");
-      dbApi.getTransactionItems(dateFilter, selectedStoreId)
-        .then(result => {
-          if (result?.length) {
-            console.log(`✅ Successfully loaded ${result.length} transactions`);
-            const uniqueStores = [...new Set(result.map(t => t.store_id))];
-            console.log(`📊 From ${uniqueStores.length} unique stores:`, uniqueStores);
-          }
-        })
-        .catch(err => console.error("❌ Error refreshing data:", err));
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [dateFilter, selectedStoreId]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -356,13 +296,12 @@ const Transactions: React.FC = () => {
         <Typography color="error">
           Error loading transaction data: {error.message}
         </Typography>
-      ) : transactions && transactions.length > 0 ? (
+      ) : filteredOrders.length === 0 ? (
+        <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
+          No transactions found
+        </Typography>
+      ) : (
         <>
-          <Box sx={{ mb: 2 }}>
-            <Typography>
-              {filteredOrders.length} transactions found {selectedStore ? `for ${selectedStore.store_name}` : 'across all stores'}
-            </Typography>
-          </Box>
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -381,9 +320,7 @@ const Transactions: React.FC = () => {
                     <TableCell component="th" scope="row">
                       #{order.id}
                     </TableCell>
-                    <TableCell>
-                      {order.customer}
-                    </TableCell>
+                    <TableCell>{order.customer}</TableCell>
                     <TableCell>
                       {order.items.length > 2
                         ? `${order.items[0]}, ${order.items[1]} +${order.items.length - 2} more`
@@ -415,84 +352,6 @@ const Transactions: React.FC = () => {
             </Box>
           )}
         </>
-      ) : (
-        <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-          No transactions found {selectedStore ? `for ${selectedStore.store_name}` : 'across all stores'}
-        </Typography>
-      )}
-      
-      {/* Debug Panel - Only shown in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <Accordion sx={{ mt: 3 }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle2" color="primary">Debug Information (Development Only)</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2">Selected Store ID: {selectedStoreId || 'All Stores'}</Typography>
-                <Typography variant="subtitle2">Date Filter: {dateFilter}</Typography>
-                <Typography variant="body2">Raw Transactions Count: {transactions?.length || 0}</Typography>
-                <Typography variant="body2">Processed Orders Count: {orders.length}</Typography>
-                <Typography variant="body2">Filtered Orders Count: {filteredOrders.length}</Typography>
-                <Typography variant="body2" fontWeight="bold" color="primary.main">
-                  Unique Store IDs in current data: {
-                  transactions?.length 
-                    ? [...new Set(transactions.map(t => t.store_id))].join(', ') 
-                    : 'None'
-                }</Typography>
-                
-                {transactions && transactions.length > 0 && (
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="body2" fontWeight="medium">Transaction Breakdown by Store:</Typography>
-                    {(() => {
-                      // Count transactions by store
-                      const storeCount = transactions.reduce((acc, t) => {
-                        acc[t.store_id] = (acc[t.store_id] || 0) + 1;
-                        return acc;
-                      }, {} as Record<number, number>);
-                      
-                      return Object.entries(storeCount).map(([storeId, count]) => (
-                        <Typography key={storeId} variant="body2" sx={{ ml: 2 }}>
-                          Store #{storeId}: {count} transactions
-                        </Typography>
-                      ));
-                    })()}
-                  </Box>
-                )}
-              </Box>
-              
-              <Divider />
-              
-              <Box>
-                <Button 
-                  variant="outlined" 
-                  size="small" 
-                  onClick={() => window.open('/api/db/debug-stores', '_blank')}
-                  sx={{ mr: 1, mb: 1 }}
-                >
-                  View All Stores
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  size="small" 
-                  onClick={() => window.open('/api/db/debug-transactions', '_blank')}
-                  sx={{ mr: 1, mb: 1 }}
-                >
-                  View Raw Transactions
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  size="small" 
-                  onClick={() => window.open('/api/db/debug-transaction-counts', '_blank')}
-                  sx={{ mr: 1, mb: 1 }}
-                >
-                  View Transaction Counts
-                </Button>
-              </Box>
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
       )}
     </Box>
   );

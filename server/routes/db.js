@@ -303,20 +303,13 @@ router.get('/item-sales', async (req, res) => {
 });
 
 // Get transaction details - optimized for performance
-// Supports limit parameter to control number of results returned
 router.get('/transaction-items', async (req, res) => {
   try {
-    const { date, store_id, limit } = req.query;
-    console.log('Transaction items requested with:', { date, store_id, limit });
-    
+    const { date } = req.query;
     await pool.connect();
     
-    // Only use limit if specifically requested
-    const useLimitClause = limit ? `TOP ${parseInt(limit, 10)}` : '';
-    console.log(`Using${useLimitClause ? ' ' + useLimitClause : ' NO'} limit for query`);
-    
     let query = `
-      SELECT ${useLimitClause}
+      SELECT TOP 30
         FKItemId as item_id,
         CheckNumber as check_number,
         DateOfBusiness as business_date,
@@ -341,30 +334,12 @@ router.get('/transaction-items', async (req, res) => {
       query += ` AND DateOfBusiness >= DATEADD(day, -3, GETDATE())`;
     }
     
-    // Add store filter if provided
-    if (store_id) {
-      query += ` AND FKStoreId = @storeId`;
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
-      console.log(`Filtering by store ID: ${store_id}`);
-    } else {
-      console.log('No store filter applied - should return transactions from all stores');
-    }
-    
     query += `
       ORDER BY
         DateOfBusiness DESC, CheckNumber DESC
     `;
     
-    console.log('Executing SQL query:', query);
-    
     const result = await request.query(query);
-    
-    console.log(`Found ${result.recordset.length} transaction items`);
-    if (result.recordset.length > 0) {
-      // Log unique check numbers to see how many actual orders we have
-      const checkNumbers = new Set(result.recordset.map(item => item.check_number));
-      console.log(`Which belong to ${checkNumbers.size} distinct orders/checks`);
-    }
     
     res.json({ 
       success: true, 
@@ -382,17 +357,13 @@ router.get('/transaction-items', async (req, res) => {
 });
 
 // Get void transactions based on GndVoid data dictionary
-// Supports limit parameter to control number of results returned
 router.get('/void-transactions', async (req, res) => {
   try {
-    const { date, store_id, limit } = req.query;
+    const { date } = req.query;
     await pool.connect();
     
-    // Use provided limit or default to 100
-    const resultLimit = limit ? parseInt(limit, 10) : 100;
-    
     let query = `
-      SELECT TOP ${resultLimit}
+      SELECT TOP 50
         CheckNumber as check_id,
         FKItemId as item_id,
         Price as price,
@@ -417,12 +388,6 @@ router.get('/void-transactions', async (req, res) => {
     } else {
       // Default to last 30 days if no date specified
       query += ` AND DateOfBusiness >= DATEADD(day, -30, GETDATE())`;
-    }
-    
-    // Add store filter if provided
-    if (store_id) {
-      query += ` AND FKStoreId = @storeId`;
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
     }
     
     query += `
@@ -450,10 +415,10 @@ router.get('/void-transactions', async (req, res) => {
 // Get a summary of sales, active orders, and customer metrics
 router.get('/sales-summary', async (req, res) => {
   try {
-    const { date, store_id } = req.query;
+    const { date } = req.query;
     
     // Use static cache to avoid recalculating within short time periods
-    const CACHE_KEY = `sales_summary_cache_${date || 'default'}_${store_id || 'all'}`;
+    const CACHE_KEY = `sales_summary_cache_${date || 'default'}`;
     const CACHE_TTL = 60000; // 1 minute cache
     
     if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
@@ -485,33 +450,26 @@ router.get('/sales-summary', async (req, res) => {
     const request = pool.request()
       .input('targetDate', sql.Date, targetDateStr)
       .input('previousDate', sql.Date, previousDateStr);
-      
-    // Add store ID parameter if provided
-    let storeFilter = '';
-    if (store_id) {
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
-      storeFilter = ' AND StoreId = @storeId';
-    }
     
     const query = `
       SELECT
-        (SELECT ISNULL(SUM(NetSales), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate${storeFilter}) AS targetSales,
+        (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @targetDate) AS t) AS targetSales,
         
-        (SELECT ISNULL(SUM(NetSales), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate${storeFilter}) AS previousSales,
+        (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @previousDate) AS y) AS previousSales,
         
-        (SELECT ISNULL(SUM(NumberOfChecks), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate${storeFilter}) AS targetCheckCount,
+        (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @targetDate) AS t) AS targetCheckCount,
         
-        (SELECT ISNULL(SUM(NumberOfChecks), 0) FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate${storeFilter}) AS previousCheckCount,
+        (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
+         WHERE DateOfBusiness = @previousDate) AS y) AS previousCheckCount,
         
-        (SELECT COUNT(DISTINCT CheckNumber) FROM dbo.DpvHstGndItem WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate${storeFilter ? ' AND StoreId = @storeId' : ''}) AS activeOrders,
+        (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
+         WHERE DateOfBusiness = @targetDate) AS a) AS activeOrders,
         
-        (SELECT COUNT(DISTINCT CheckNumber) FROM dbo.DpvHstGndItem WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate${storeFilter ? ' AND StoreId = @storeId' : ''}) AS previousDayOrders
+        (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
+         WHERE DateOfBusiness = @previousDate) AS p) AS previousDayOrders
     `;
     
     const result = await request.query(query);
@@ -575,51 +533,24 @@ router.get('/sales-summary', async (req, res) => {
 // Get menu items statistics
 router.get('/menu-stats', async (req, res) => {
   try {
-    // Get query parameters
-    const { date, store_id } = req.query;
-    
-    // Use static cache to avoid recalculating within short time periods
-    const CACHE_KEY = `menu_stats_cache_${date || 'default'}_${store_id || 'all'}`;
-    const CACHE_TTL = 60000; // 1 minute cache
-    
-    if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
-      return res.json(global[CACHE_KEY].data);
-    }
-    
+    // Menu stats are relatively static, so we don't need date filtering here
     await pool.connect();
     
-    // Build query with optional store filter
-    const request = pool.request();
-    let storeFilter = '';
-    
-    if (store_id) {
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
-      storeFilter = ' WHERE StoreId = @storeId';
-    }
-    
     // Optimized to use cached query plan and minimal data
-    const menuItemsResult = await request.query(`
-      SELECT 
-        COUNT(DISTINCT ItemId) as item_count
-      FROM 
-        dbo.Item WITH (NOLOCK)
-        ${storeFilter}
-    `);
+    const menuItemsResult = await pool.request()
+      .query(`
+        SELECT 
+          COUNT(DISTINCT ItemId) as item_count
+        FROM 
+          dbo.Item WITH (NOLOCK)
+      `);
 
-    const response = {
+    res.json({
       success: true,
       data: {
         menuItemCount: menuItemsResult.recordset[0].item_count || 0
       }
-    };
-    
-    // Store in cache
-    global[CACHE_KEY] = {
-      timestamp: Date.now(),
-      data: response
-    };
-    
-    res.json(response);
+    });
   } catch (err) {
     console.error('Menu stats query error:', err);
     res.status(500).json({
@@ -633,16 +564,7 @@ router.get('/menu-stats', async (req, res) => {
 // Get sales by category for revenue breakdown
 router.get('/category-sales', async (req, res) => {
   try {
-    const { date, store_id } = req.query;
-    
-    // Use static cache to avoid recalculating within short time periods
-    const CACHE_KEY = `category_sales_cache_${date || 'default'}_${store_id || 'all'}`;
-    const CACHE_TTL = 60000; // 1 minute cache
-    
-    if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
-      return res.json(global[CACHE_KEY].data);
-    }
-    
+    const { date } = req.query;
     await pool.connect();
     
     let query = `
@@ -658,19 +580,13 @@ router.get('/category-sales', async (req, res) => {
     
     const request = pool.request();
     
-    // Add date filter if provided
     if (date) {
+      // If specific date is requested
       query += ` AND CONVERT(DATE, i.DateOfBusiness) = @date`;
       request.input('date', sql.Date, new Date(date));
     } else {
       // Default to last 7 days if no date specified
       query += ` AND i.DateOfBusiness >= DATEADD(day, -7, GETDATE())`;
-    }
-    
-    // Add store filter if provided
-    if (store_id) {
-      query += ` AND i.StoreId = @storeId`;
-      request.input('storeId', sql.Int, parseInt(store_id, 10));
     }
     
     query += `
@@ -703,132 +619,15 @@ router.get('/category-sales', async (req, res) => {
       };
     });
 
-    const response = {
+    res.json({
       success: true,
       data: formattedData
-    };
-    
-    // Store in cache
-    global[CACHE_KEY] = {
-      timestamp: Date.now(),
-      data: response
-    };
-    
-    res.json(response);
+    });
   } catch (err) {
     console.error('Category sales query error:', err);
     res.status(500).json({
       success: false,
       message: 'Error retrieving category sales data',
-      error: err.message
-    });
-  }
-});
-
-// DEBUG endpoint - Get all store IDs and transaction counts to help debug
-router.get('/debug-stores', async (req, res) => {
-  try {
-    await pool.connect();
-    
-    const query = `
-      SELECT 
-        FKStoreId as store_id,
-        COUNT(*) as transaction_count,
-        COUNT(DISTINCT CheckNumber) as order_count
-      FROM
-        dbo.DpvHstGndItem WITH (NOLOCK)
-      GROUP BY 
-        FKStoreId
-      ORDER BY 
-        transaction_count DESC
-    `;
-    
-    const result = await pool.request().query(query);
-    
-    res.json({ 
-      success: true, 
-      count: result.recordset.length,
-      data: result.recordset
-    });
-  } catch (err) {
-    console.error('Debug stores query error:', err);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error retrieving store debug data',
-      error: err.message
-    });
-  }
-});
-
-// DEBUG endpoint - Get a sampling of raw transactions with no filtering
-router.get('/debug-transactions', async (req, res) => {
-  try {
-    await pool.connect();
-    
-    const query = `
-      SELECT TOP 20
-        FKItemId as item_id,
-        CheckNumber as check_number,
-        DateOfBusiness as business_date,
-        Price as price,
-        Quantity as quantity,
-        Type as record_type,
-        FKCategoryId as category_id,
-        FKStoreId as store_id
-      FROM
-        dbo.DpvHstGndItem WITH (NOLOCK)
-      ORDER BY
-        DateOfBusiness DESC, CheckNumber DESC
-    `;
-    
-    const result = await pool.request().query(query);
-    
-    res.json({ 
-      success: true, 
-      count: result.recordset.length,
-      data: result.recordset
-    });
-  } catch (err) {
-    console.error('Debug transactions query error:', err);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error retrieving transaction debug data',
-      error: err.message
-    });
-  }
-});
-
-// DEBUG endpoint - Get transaction counts by date and store
-router.get('/debug-transaction-counts', async (req, res) => {
-  try {
-    await pool.connect();
-    
-    const query = `
-      SELECT 
-        CONVERT(DATE, DateOfBusiness) as date,
-        FKStoreId as store_id,
-        COUNT(*) as transaction_count,
-        COUNT(DISTINCT CheckNumber) as order_count
-      FROM
-        dbo.DpvHstGndItem WITH (NOLOCK)
-      GROUP BY 
-        CONVERT(DATE, DateOfBusiness), FKStoreId
-      ORDER BY 
-        date DESC, store_id ASC
-    `;
-    
-    const result = await pool.request().query(query);
-    
-    res.json({ 
-      success: true, 
-      count: result.recordset.length,
-      data: result.recordset
-    });
-  } catch (err) {
-    console.error('Debug transaction counts query error:', err);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error retrieving transaction counts data',
       error: err.message
     });
   }

@@ -25,8 +25,6 @@ interface PopularItemsProps {
   subtitle?: string;
   onViewAll?: () => void;
   preloadedData?: ItemSalesData[];
-  date?: string;
-  storeId?: number | null;
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -101,19 +99,14 @@ const PopularItems: React.FC<PopularItemsProps> = ({
   title,
   subtitle,
   onViewAll,
-  preloadedData,
-  date,
-  storeId
+  preloadedData
 }) => {
   const theme = useTheme();
   
   // Fetch item sales data from API only if not provided via props
   const { data: fetchedItemSalesData, isLoading, error } = useApi(
-    () => dbApi.getItemSales(date, storeId),
-    { 
-      skipFetch: !!preloadedData,
-      deps: [date, storeId]
-    }
+    () => dbApi.getItemSales(),
+    { skipFetch: !!preloadedData }
   );
   
   // Use preloaded data if available, otherwise use fetched data

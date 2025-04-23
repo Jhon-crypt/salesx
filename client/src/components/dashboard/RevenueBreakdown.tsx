@@ -23,8 +23,6 @@ interface RevenueBreakdownProps {
   title: string;
   subtitle?: string;
   preloadedData?: CategorySales[];
-  date?: string;
-  storeId?: number | null;
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -66,19 +64,14 @@ const formatCurrency = (value: number) => {
 const RevenueBreakdown: React.FC<RevenueBreakdownProps> = ({
   title,
   subtitle,
-  preloadedData,
-  date,
-  storeId
+  preloadedData
 }) => {
   const theme = useTheme();
   
   // Fetch category sales data from API only if not provided through props
   const { data: fetchedCategorySales, isLoading, error } = useApi(
-    () => dbApi.getCategorySales(date, storeId),
-    { 
-      skipFetch: !!preloadedData,
-      deps: [date, storeId]
-    }
+    () => dbApi.getCategorySales(),
+    { skipFetch: !!preloadedData }
   );
   
   // Use preloaded data if available, otherwise use fetched data

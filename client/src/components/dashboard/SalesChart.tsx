@@ -23,8 +23,6 @@ interface SalesChartProps {
   title: string;
   subtitle?: string;
   preloadedData?: SalesData[];
-  date?: string;
-  storeId?: number | null;
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -110,20 +108,15 @@ const processDataByTimeRange = (data: SalesData[], range: TimeRange) => {
 const SalesChart: React.FC<SalesChartProps> = ({
   title,
   subtitle,
-  preloadedData,
-  date,
-  storeId
+  preloadedData
 }) => {
   const theme = useTheme();
   const [timeRange, setTimeRange] = useState<TimeRange>('day');
   
   // Fetch sales data from API only if not provided via props
   const { data: fetchedSalesData, isLoading, error } = useApi(
-    () => dbApi.getStoreSales(date, storeId),
-    { 
-      skipFetch: !!preloadedData,
-      deps: [date, storeId]
-    }
+    () => dbApi.getStoreSales(),
+    { skipFetch: !!preloadedData } // Skip API call if we have preloaded data
   );
   
   // Use preloaded data if available, otherwise use fetched data

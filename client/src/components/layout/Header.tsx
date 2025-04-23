@@ -12,8 +12,7 @@ import {
   Divider,
   ListItemIcon,
   ListItemText,
-  useTheme,
-  Chip
+  useTheme
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -22,12 +21,10 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SearchIcon from '@mui/icons-material/Search';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import StorefrontIcon from '@mui/icons-material/Storefront';
 import InputBase from '@mui/material/InputBase';
 import { styled, alpha } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { useStore } from '../../contexts/StoreContext';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -97,7 +94,6 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { selectedStore } = useStore();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState<null | HTMLElement>(null);
   
@@ -168,41 +164,6 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
           <LogoText>
             SalesX
           </LogoText>
-          
-          {/* Store Indicator */}
-          {selectedStore ? (
-            <Chip
-              icon={<StorefrontIcon style={{ fontSize: 14 }} />}
-              label={selectedStore.store_name}
-              size="small"
-              sx={{
-                ml: 2,
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                color: theme.palette.primary.main,
-                fontWeight: 500,
-                '& .MuiChip-icon': {
-                  color: theme.palette.primary.main,
-                }
-              }}
-              onClick={() => navigate('/dashboard')}
-            />
-          ) : (
-            <Chip
-              icon={<StorefrontIcon style={{ fontSize: 14 }} />}
-              label="All Stores"
-              size="small"
-              variant="outlined"
-              sx={{
-                ml: 2,
-                color: theme.palette.text.secondary,
-                fontWeight: 500,
-                '& .MuiChip-icon': {
-                  color: theme.palette.text.secondary,
-                }
-              }}
-              onClick={() => navigate('/dashboard')}
-            />
-          )}
         </LogoContainer>
         
         {/* Search Bar */}
