@@ -1,110 +1,110 @@
-import React from 'react';
-import { 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
-  SelectChangeEvent,
-  Box,
-  Chip,
-  Typography,
-  useTheme
-} from '@mui/material';
+import React, { useCallback, useMemo } from 'react';
+import { FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, Box, Chip } from '@mui/material';
 import { StoreInfo } from '../../services/api';
-import useApi from '../../hooks/useApi';
-import { dbApi } from '../../services/api';
 import StorefrontIcon from '@mui/icons-material/Storefront';
-import { useStore } from '../../contexts/StoreContext';
+import BusinessIcon from '@mui/icons-material/Business';
 
 interface StoreSelectorProps {
-  value?: number | null;
-  onChange?: (storeId: number | null) => void;
-  label?: string;
-  width?: string | number;
-  variant?: 'standard' | 'outlined' | 'filled';
+  stores: StoreInfo[];
+  selectedStoreId: number | null;
+  onChange: (storeId: number | null) => void;
   size?: 'small' | 'medium';
-  showStoreCount?: boolean;
-  useGlobalContext?: boolean;
+  label?: string;
+  fullWidth?: boolean;
+  maxWidth?: number | string;
+  showCount?: boolean;
+  disabled?: boolean;
 }
 
+/**
+ * A high-performance store selector component that allows users to filter dashboard data
+ * by individual stores or view data from all stores combined.
+ */
 const StoreSelector: React.FC<StoreSelectorProps> = ({
-  value,
+  stores,
+  selectedStoreId,
   onChange,
-  label = 'Store',
-  width = 200,
-  variant = 'outlined',
-  size = 'small',
-  showStoreCount = true,
-  useGlobalContext = false
+  size = 'medium',
+  label = 'Select Store',
+  fullWidth = false,
+  maxWidth = 250,
+  showCount = true,
+  disabled = false
 }) => {
-  const theme = useTheme();
-  const { data: apiStores, isLoading: apiLoading } = useApi(() => dbApi.getStores());
-  
-  // Use global store context if requested
-  const globalStore = useStore();
-  
-  // Determine which store state to use
-  const selectedStoreId = useGlobalContext ? globalStore.selectedStoreId : value;
-  const storeChangeHandler = useGlobalContext ? globalStore.setSelectedStoreId : onChange;
-  const stores = useGlobalContext ? globalStore.stores : apiStores;
-  const isLoading = useGlobalContext ? globalStore.isLoading : apiLoading;
-  
-  // Handle select change
-  const handleChange = (event: SelectChangeEvent<string>) => {
-    const storeId = event.target.value === 'all' ? null : parseInt(event.target.value);
-    if (storeChangeHandler) {
-      storeChangeHandler(storeId);
-    }
-  };
+  // Memoized sorted stores with "All Stores" option at the top
+  const sortedStores = useMemo(() => {
+    // Deep clone and sort stores by name
+    return [...stores].sort((a, b) => a.store_name.localeCompare(b.store_name));
+  }, [stores]);
 
-  // Format store display name with sales data if available
-  const formatStoreName = (store: StoreInfo) => {
-    if (!store.daily_sales) return store.store_name;
-    return `${store.store_name} ($${store.daily_sales.toLocaleString()})`;
-  };
+  // Handle store selection change
+  const handleChange = useCallback((event: SelectChangeEvent<number | string>) => {
+    const value = event.target.value;
+    const storeId = value === 'all' ? null : Number(value);
+    onChange(storeId);
+  }, [onChange]);
+
+  // Format store name for display with optional sales data
+  const formatStoreName = useCallback((store: StoreInfo) => {
+    let name = store.store_name;
+    if (showCount && store.daily_sales !== undefined) {
+      name += ` ($${store.daily_sales.toLocaleString()})`;
+    }
+    return name;
+  }, [showCount]);
+
+  // Selected value for the select component
+  const selectValue = useMemo(() => selectedStoreId === null ? 'all' : selectedStoreId, [selectedStoreId]);
 
   return (
-    <FormControl variant={variant} sx={{ minWidth: width }} size={size}>
+    <FormControl
+      size={size}
+      fullWidth={fullWidth}
+      sx={{ maxWidth, minWidth: 150 }}
+      disabled={disabled}
+    >
       <InputLabel id="store-selector-label">{label}</InputLabel>
       <Select
         labelId="store-selector-label"
-        value={selectedStoreId === null ? 'all' : selectedStoreId?.toString()}
-        onChange={handleChange}
+        id="store-selector"
+        value={selectValue}
         label={label}
-        disabled={isLoading}
+        onChange={handleChange}
         startAdornment={
-          <StorefrontIcon 
-            sx={{ 
-              color: 'action.active', 
-              mr: 1,
-              ml: -0.5
-            }} 
-            fontSize="small"
-          />
+          <StorefrontIcon sx={{ mr: 1, ml: -0.5, color: 'text.secondary' }} fontSize="small" />
         }
+        MenuProps={{
+          PaperProps: {
+            sx: { maxHeight: 400 }
+          }
+        }}
       >
-        <MenuItem value="all">
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <Typography>All Stores</Typography>
-            {showStoreCount && stores && (
+        <MenuItem value="all" divider sx={{ fontWeight: selectedStoreId === null ? 'bold' : 'normal' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <BusinessIcon fontSize="small" color="primary" />
+            All Stores
+            {showCount && stores.length > 0 && (
               <Chip 
-                label={`${stores.length} stores`} 
+                label={stores.length} 
                 size="small" 
-                sx={{ 
-                  ml: 1, 
-                  backgroundColor: theme.palette.primary.main + '20',
-                  color: theme.palette.primary.main,
-                  fontWeight: 500,
-                  fontSize: '0.7rem'
-                }} 
+                color="primary" 
+                variant="outlined" 
+                sx={{ ml: 1, height: 20, '& .MuiChip-label': { px: 1 } }} 
               />
             )}
           </Box>
         </MenuItem>
         
-        {stores?.map((store) => (
-          <MenuItem key={store.store_id} value={store.store_id.toString()}>
-            {formatStoreName(store)}
+        {sortedStores.map((store) => (
+          <MenuItem 
+            key={store.store_id} 
+            value={store.store_id}
+            sx={{ fontWeight: selectedStoreId === store.store_id ? 'bold' : 'normal' }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <StorefrontIcon fontSize="small" color="action" />
+              {formatStoreName(store)}
+            </Box>
           </MenuItem>
         ))}
       </Select>
@@ -112,4 +112,4 @@ const StoreSelector: React.FC<StoreSelectorProps> = ({
   );
 };
 
-export default StoreSelector; 
+export default React.memo(StoreSelector); 
