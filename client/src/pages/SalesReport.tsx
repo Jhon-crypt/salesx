@@ -46,6 +46,7 @@ import {
 } from 'recharts';
 import useApi from '../hooks/useApi';
 import { dbApi, SalesData } from '../services/api';
+import { useStore } from '../contexts/StoreContext';
 
 // Define tabs for report views
 interface TabPanelProps {
@@ -105,19 +106,33 @@ const TrendIndicator = ({ value }: { value: number }) => {
 
 const SalesReport: React.FC = () => {
   const theme = useTheme();
+  const [activeTab, setActiveTab] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState('2023-09-01');
+  
+  // Use global store context
+  const { selectedStoreId, selectedStore } = useStore();
+
+  // Fetch data with store filter
+  const { data: salesData, isLoading: isLoadingSales } = useApi(
+    () => dbApi.getStoreSales(dateFilter, selectedStoreId),
+    { deps: [dateFilter, selectedStoreId] }
+  );
+
+  // Title helper that includes store name
+  const getReportTitle = () => {
+    const baseTitle = "Sales Report";
+    return selectedStore 
+      ? `${baseTitle} - ${selectedStore.store_name}` 
+      : `${baseTitle} - All Stores`;
+  };
+
   // State for filters and data display
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState(0);
   const [filteredData, setFilteredData] = useState<SalesData[]>([]);
-  
-  // Fetch sales data
-  const { data: salesData, isLoading, error } = useApi(
-    () => dbApi.getStoreSales(startDate),
-    { deps: [startDate] }
-  );
   
   // Process and prepare data when raw data changes or filters change
   useEffect(() => {
@@ -272,7 +287,7 @@ const SalesReport: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
                 letterSpacing: '-0.02em',
               }}>
-                Sales Report
+                {getReportTitle()}
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
                 Analyze sales performance across time periods and stores
@@ -400,7 +415,7 @@ const SalesReport: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
           <CircularProgress />
         </Box>
-      ) : error ? (
+      ) : isLoadingSales ? (
         <Typography color="error">
           Error loading sales data: {error.message}
         </Typography>

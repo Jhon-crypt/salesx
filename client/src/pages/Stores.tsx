@@ -21,7 +21,9 @@ import {
   Stack,
   Breadcrumbs,
   Link,
-  useTheme
+  useTheme,
+  Grid,
+  Button
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
@@ -33,6 +35,8 @@ import InfoIcon from '@mui/icons-material/Info';
 import HomeIcon from '@mui/icons-material/Home';
 import useApi from '../hooks/useApi';
 import { dbApi, StoreInfo } from '../services/api';
+import PageHeader from '../components/common/PageHeader';
+import { useStore } from '../contexts/StoreContext';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -54,20 +58,27 @@ const Stores: React.FC = () => {
   const [page, setPage] = useState(1);
   const [filteredStores, setFilteredStores] = useState<StoreInfo[]>([]);
   
+  // Use the global store context
+  const { selectedStoreId, setSelectedStoreId, stores: contextStores, isLoading: contextLoading } = useStore();
+  
   // Fetch store data from API
-  const { data: storeData, isLoading, error } = useApi(
+  const { data: apiStores, isLoading: apiLoading } = useApi(
     () => dbApi.getStores(),
-    {}
+    { skip: contextStores?.length > 0 }
   );
+  
+  // Use stores from context if available, otherwise from API
+  const stores = contextStores?.length > 0 ? contextStores : apiStores || [];
+  const isLoading = contextLoading || apiLoading;
   
   // Apply search filter
   useEffect(() => {
-    if (!storeData) {
+    if (!stores) {
       setFilteredStores([]);
       return;
     }
     
-    let result = storeData;
+    let result = stores;
     
     // Apply search filter
     if (searchTerm) {
@@ -81,7 +92,7 @@ const Stores: React.FC = () => {
     
     setFilteredStores(result);
     setPage(1); // Reset to first page when filters change
-  }, [storeData, searchTerm]);
+  }, [stores, searchTerm]);
   
   // Pagination
   const totalPages = Math.ceil(filteredStores.length / ITEMS_PER_PAGE);
@@ -103,185 +114,157 @@ const Stores: React.FC = () => {
   const totalTransactions = filteredStores.reduce((sum, store) => sum + (store.check_count || 0), 0);
   const totalCustomers = filteredStores.reduce((sum, store) => sum + (store.guest_count || 0), 0);
 
+  // Handle store selection
+  const handleSelectStore = (storeId: number) => {
+    // If clicking the already selected store, deselect it (select all stores)
+    if (selectedStoreId === storeId) {
+      setSelectedStoreId(null);
+    } else {
+      setSelectedStoreId(storeId);
+    }
+  };
+
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      {/* Page Header */}
-      <Paper 
-        elevation={0}
-        sx={{ 
-          mb: 3, 
-          p: 3, 
-          borderRadius: 2,
-          background: `linear-gradient(90deg, ${theme.palette.primary.main}11 0%, ${theme.palette.secondary.main}11 100%)`,
-          border: `1px solid ${theme.palette.divider}`
-        }}
-      >
-        <Stack spacing={1}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Typography variant="h4" fontWeight="bold" sx={{ 
-                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                letterSpacing: '-0.02em',
-              }}>
-                Store Management
-              </Typography>
-              <Typography variant="subtitle1" color="text.secondary">
-                View and analyze performance across all store locations
-              </Typography>
-            </Box>
-          </Box>
-          
-          <Breadcrumbs aria-label="breadcrumb">
-            <Link
-              underline="hover"
-              color="inherit"
-              href="/dashboard"
-              sx={{ display: 'flex', alignItems: 'center' }}
-            >
-              <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-              Home
-            </Link>
-            <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-              <StorefrontIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-              Stores
-            </Typography>
-          </Breadcrumbs>
-        </Stack>
-      </Paper>
+    <Box sx={{ p: 3 }}>
+      <PageHeader 
+        title="Stores"
+        subtitle="View and manage all your store locations"
+        showDatePicker={false}
+        breadcrumbs={[
+          { label: 'Stores' }
+        ]}
+      />
       
-      {/* Summary Cards */}
-      <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 3, mb: 3 }}>
-        <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText', flex: '1 1 30%', minWidth: '250px' }}>
-          <CardContent sx={{ display: 'flex', alignItems: 'center' }}>
-            <StorefrontIcon sx={{ fontSize: 48, mr: 2 }} />
-            <Box>
-              <Typography variant="body2" fontWeight="medium">
-                Total Stores
-              </Typography>
-              <Typography variant="h4" fontWeight="bold">
-                {filteredStores.length}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-        <Card sx={{ bgcolor: 'success.light', color: 'success.contrastText', flex: '1 1 30%', minWidth: '250px' }}>
-          <CardContent sx={{ display: 'flex', alignItems: 'center' }}>
-            <MoneyIcon sx={{ fontSize: 48, mr: 2 }} />
-            <Box>
-              <Typography variant="body2" fontWeight="medium">
-                Total Sales
-              </Typography>
-              <Typography variant="h4" fontWeight="bold">
-                ${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-        <Card sx={{ bgcolor: 'info.light', color: 'info.contrastText', flex: '1 1 30%', minWidth: '250px' }}>
-          <CardContent sx={{ display: 'flex', alignItems: 'center' }}>
-            <PeopleIcon sx={{ fontSize: 48, mr: 2 }} />
-            <Box>
-              <Typography variant="body2" fontWeight="medium">
-                Total Customers
-              </Typography>
-              <Typography variant="h4" fontWeight="bold">
-                {totalCustomers.toLocaleString()}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
-      
-      {/* Search Bar */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <TextField
-            fullWidth
-            placeholder="Search by store name or ID..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </CardContent>
-      </Card>
-      
-      {/* Store Data Table */}
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
-          <CircularProgress />
-        </Box>
-      ) : error ? (
-        <Typography color="error">
-          Error loading store data: {error.message}
-        </Typography>
-      ) : filteredStores.length === 0 ? (
-        <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-          No stores found
-        </Typography>
-      ) : (
-        <>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Store ID</TableCell>
-                  <TableCell>Store Name</TableCell>
-                  <TableCell align="right">Daily Sales</TableCell>
-                  <TableCell align="right">Transactions</TableCell>
-                  <TableCell align="right">Customers</TableCell>
-                  <TableCell align="right">Last Updated</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedStores.map((store) => (
-                  <TableRow key={store.store_id} hover>
-                    <TableCell>#{store.store_id}</TableCell>
-                    <TableCell>{store.store_name}</TableCell>
-                    <TableCell align="right">
-                      ${store.daily_sales?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-                    </TableCell>
-                    <TableCell align="right">
-                      {store.check_count?.toLocaleString() || '0'}
-                    </TableCell>
-                    <TableCell align="right">
-                      {store.guest_count?.toLocaleString() || '0'}
-                    </TableCell>
-                    <TableCell align="right">
-                      {store.transaction_date 
-                        ? new Date(store.transaction_date).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })
-                        : 'N/A'
-                      }
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          
-          {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-              <Pagination 
-                count={totalPages} 
-                page={page} 
-                onChange={handlePageChange} 
-                color="primary" 
-              />
-            </Box>
-          )}
-        </>
-      )}
+      <Grid container spacing={3}>
+        {isLoading ? (
+          <Grid item xs={12}>
+            <Typography>Loading stores...</Typography>
+          </Grid>
+        ) : stores?.length > 0 ? (
+          <>
+            {/* All Stores Card */}
+            <Grid item xs={12} md={4} lg={3}>
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  border: selectedStoreId === null ? '2px solid #1976d2' : '1px solid #e0e0e0',
+                  boxShadow: selectedStoreId === null ? '0 4px 12px rgba(25, 118, 210, 0.2)' : 'none',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                  }
+                }}
+                onClick={() => setSelectedStoreId(null)}
+              >
+                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Box sx={{ 
+                        bgcolor: '#f0f0f0', 
+                        p: 1, 
+                        borderRadius: 1, 
+                        mr: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <StorefrontIcon color="action" />
+                      </Box>
+                      <Typography variant="h6">All Stores</Typography>
+                    </Box>
+                    
+                    <Chip 
+                      label={`${stores.length} locations`} 
+                      size="small" 
+                      sx={{ mb: 2 }} 
+                    />
+                    
+                    <Typography variant="body2" color="text.secondary">
+                      View combined data from all store locations
+                    </Typography>
+                  </Box>
+                  
+                  <Button 
+                    variant={selectedStoreId === null ? "contained" : "outlined"} 
+                    size="small" 
+                    sx={{ mt: 2, alignSelf: 'flex-start' }}
+                  >
+                    {selectedStoreId === null ? "Currently Selected" : "Select All Stores"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            {/* Individual Store Cards */}
+            {stores.map(store => (
+              <Grid item xs={12} md={4} lg={3} key={store.store_id}>
+                <Card 
+                  sx={{ 
+                    height: '100%',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    border: selectedStoreId === store.store_id ? '2px solid #1976d2' : '1px solid #e0e0e0',
+                    boxShadow: selectedStoreId === store.store_id ? '0 4px 12px rgba(25, 118, 210, 0.2)' : 'none',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                    }
+                  }}
+                  onClick={() => handleSelectStore(store.store_id)}
+                >
+                  <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Box sx={{ 
+                          bgcolor: '#f0f8ff', 
+                          p: 1, 
+                          borderRadius: 1, 
+                          mr: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <StorefrontIcon color="primary" />
+                        </Box>
+                        <Typography variant="h6">{store.store_name}</Typography>
+                      </Box>
+                      
+                      {store.daily_sales && (
+                        <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                          ${store.daily_sales.toLocaleString()}
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            Daily Sales
+                          </Typography>
+                        </Typography>
+                      )}
+                      
+                      {store.guest_count && (
+                        <Typography variant="body2" color="text.secondary">
+                          {store.guest_count} customers
+                        </Typography>
+                      )}
+                    </Box>
+                    
+                    <Button 
+                      variant={selectedStoreId === store.store_id ? "contained" : "outlined"} 
+                      size="small" 
+                      sx={{ mt: 2, alignSelf: 'flex-start' }}
+                    >
+                      {selectedStoreId === store.store_id ? "Currently Selected" : "Select Store"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </>
+        ) : (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, textAlign: 'center' }}>
+              <Typography>No stores found</Typography>
+            </Paper>
+          </Grid>
+        )}
+      </Grid>
     </Box>
   );
 };

@@ -52,6 +52,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import useApi from '../hooks/useApi';
 import { dbApi, ItemSalesData, CategorySales } from '../services/api';
 import { format, subDays, parseISO } from 'date-fns';
+import { useStore } from '../contexts/StoreContext';
 
 // Define tabs for report views
 interface TabPanelProps {
@@ -134,10 +135,13 @@ const MenuAnalysis: React.FC = () => {
   const [filteredItems, setFilteredItems] = useState<ProcessedItemSale[]>([]);
   const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   
+  // Use the global store context to get the selected store
+  const { selectedStoreId, selectedStore } = useStore();
+  
   // Fetch data
   const { data: itemSales, isLoading: isLoadingItems, error: itemsError } = useApi(
-    () => dbApi.getItemSales(dateFilter),
-    { deps: [dateFilter] }
+    () => dbApi.getItemSales(undefined, selectedStoreId),
+    { deps: [selectedStoreId] }
   );
   
   const { data: categorySales, isLoading: isLoadingCategories, error: categoriesError } = useApi(

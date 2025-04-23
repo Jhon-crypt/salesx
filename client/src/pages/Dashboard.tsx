@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useContext, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Box, Typography, Breadcrumbs, Link, useTheme, Paper, Stack, TextField, Divider } from '@mui/material';
 import { format } from 'date-fns';
 import StatsCard from '../components/dashboard/StatsCard';
@@ -29,7 +29,6 @@ const DashboardDataContext = React.createContext<{
   transactionItems: TransactionItem[] | null;
   itemSales: ItemSalesData[] | null;
   storeSales: SalesData[] | null;
-  fetchDashboardData?: (date: string, storeId?: number | null) => void;
   selectedStoreId: number | null;
 }>({
   salesSummary: null,
@@ -76,19 +75,7 @@ const DashboardContent: React.FC = () => {
   // Get store from global context instead of local state
   const { selectedStoreId, selectedStore } = useStore();
 
-  // Get dashboard data from context
-  const { 
-    salesSummary,
-    fetchDashboardData
-  } = useContext(DashboardDataContext);
-
-  // Fetch data when selected date or store changes
-  useEffect(() => {
-    console.log('Selected date or store changed:', selectedDate, selectedStoreId);
-    if (fetchDashboardData) {
-      fetchDashboardData(selectedDate, selectedStoreId);
-    }
-  }, [selectedDate, selectedStoreId, fetchDashboardData]);
+  // No need for getting dashboard data from context since we're using API data directly
   
   const theme = useTheme();
   
@@ -139,7 +126,6 @@ const DashboardContent: React.FC = () => {
     transactionItems: transactionItemsData || null,
     itemSales: itemSalesData || null,
     storeSales: storeSalesData || null,
-    fetchDashboardData,
     selectedStoreId
   };
   
@@ -176,29 +162,29 @@ const DashboardContent: React.FC = () => {
                   All your restaurant metrics in one place
                 </Typography>
               </Box>
-              {salesSummary?.salesTrend != null && (
+              {salesSummaryData?.salesTrend != null && (
                 <Box sx={{ 
                   py: 0.5, 
                   px: 2, 
                   borderRadius: 2, 
-                  backgroundColor: salesSummary.salesTrend >= 0 ? '#10b98120' : '#f4433620', 
+                  backgroundColor: salesSummaryData.salesTrend >= 0 ? '#10b98120' : '#f4433620', 
                   display: 'flex', 
                   alignItems: 'center'
                 }}>
                   <ArrowUpwardIcon 
                     sx={{ 
-                      color: salesSummary.salesTrend >= 0 ? theme.palette.success.main : theme.palette.error.main, 
+                      color: salesSummaryData.salesTrend >= 0 ? theme.palette.success.main : theme.palette.error.main, 
                       fontSize: 16, 
                       mr: 1,
-                      transform: salesSummary.salesTrend < 0 ? 'rotate(180deg)' : 'none'
+                      transform: salesSummaryData.salesTrend < 0 ? 'rotate(180deg)' : 'none'
                     }} 
                   />
                   <Typography 
                     variant="body2" 
-                    color={salesSummary.salesTrend >= 0 ? theme.palette.success.main : theme.palette.error.main}
+                    color={salesSummaryData.salesTrend >= 0 ? theme.palette.success.main : theme.palette.error.main}
                     fontWeight="medium"
                   >
-                    Sales {salesSummary.salesTrend >= 0 ? 'Up' : 'Down'} {Math.abs(salesSummary.salesTrend)}% from last week
+                    Sales {salesSummaryData.salesTrend >= 0 ? 'Up' : 'Down'} {Math.abs(salesSummaryData.salesTrend)}% from last week
                   </Typography>
                 </Box>
               )}
@@ -253,9 +239,9 @@ const DashboardContent: React.FC = () => {
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Sales"
-              value={salesSummary?.todaySales || 0}
+              value={salesSummaryData?.todaySales || 0}
               prefix="$"
-              trend={salesSummary?.salesTrend}
+              trend={salesSummaryData?.salesTrend}
               trendLabel="vs Previous Day"
               icon={<ReceiptIcon />}
               color="primary"
@@ -264,8 +250,8 @@ const DashboardContent: React.FC = () => {
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Active Orders"
-              value={salesSummary?.activeOrders || 0}
-              trend={salesSummary?.ordersTrend}
+              value={salesSummaryData?.activeOrders || 0}
+              trend={salesSummaryData?.ordersTrend}
               trendLabel="vs Last Hour"
               icon={<ShoppingCartIcon />}
               color="secondary"
@@ -274,8 +260,8 @@ const DashboardContent: React.FC = () => {
           <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(25% - 18px)' }}}>
             <StatsCard
               title="Customers"
-              value={salesSummary?.customers || 0}
-              trend={salesSummary?.customersTrend}
+              value={salesSummaryData?.customers || 0}
+              trend={salesSummaryData?.customersTrend}
               trendLabel="vs Yesterday"
               icon={<GroupIcon />}
               color="success"
@@ -330,37 +316,9 @@ const DashboardContent: React.FC = () => {
   );
 };
 
-const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Function to fetch dashboard data
-  const fetchDashboardData = useCallback((date: string, storeId?: number | null) => {
-    console.log('Fetching dashboard data for date:', date, 'store:', storeId);
-    // Data is already fetched via useApi hooks with date as dependency
-  }, []);
-  
-  // Combined data object for context
-  const dashboardData = {
-    salesSummary: null,
-    menuStats: null,
-    categorySales: null,
-    transactionItems: null,
-    itemSales: null,
-    storeSales: null,
-    fetchDashboardData,
-    selectedStoreId: null
-  };
-  
-  return (
-    <DashboardDataContext.Provider value={dashboardData}>
-      {children}
-    </DashboardDataContext.Provider>
-  );
-};
-
 const Dashboard: React.FC = () => {
   return (
-    <DashboardDataProvider>
-      <DashboardContent />
-    </DashboardDataProvider>
+    <DashboardContent />
   );
 };
 
