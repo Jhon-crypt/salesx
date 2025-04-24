@@ -39,16 +39,9 @@ const DashboardDataContext = React.createContext<{
 // Enhanced components that use data from context rather than fetching themselves
 const DashboardSalesChart: React.FC<{ title: string; subtitle?: string }> = (props) => {
   const { storeSales } = React.useContext(DashboardDataContext);
-  const { selectedStoreId } = useStoreContext();
+  // Server-side filtering is now done via API
   
-  // Filter sales data by selected store if needed
-  const filteredSales = useMemo(() => {
-    if (!storeSales) return undefined;
-    if (selectedStoreId === null) return storeSales;
-    return storeSales.filter(sale => sale.store_id === selectedStoreId);
-  }, [storeSales, selectedStoreId]);
-  
-  return <SalesChart {...props} preloadedData={filteredSales || undefined} />;
+  return <SalesChart {...props} preloadedData={storeSales || undefined} />;
 };
 
 const DashboardRevenueBreakdown: React.FC<{ title: string; subtitle?: string }> = (props) => {
@@ -58,30 +51,16 @@ const DashboardRevenueBreakdown: React.FC<{ title: string; subtitle?: string }> 
 
 const DashboardRecentOrders: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
   const { transactionItems } = React.useContext(DashboardDataContext);
-  const { selectedStoreId } = useStoreContext();
+  // We no longer need to filter by selectedStoreId since it's handled in the API call now
   
-  // Filter transaction items by selected store if needed
-  const filteredItems = useMemo(() => {
-    if (!transactionItems) return undefined;
-    if (selectedStoreId === null) return transactionItems;
-    return transactionItems.filter(item => item.store_id === selectedStoreId);
-  }, [transactionItems, selectedStoreId]);
-  
-  return <RecentOrders {...props} preloadedData={filteredItems || undefined} />;
+  return <RecentOrders {...props} preloadedData={transactionItems || undefined} />;
 };
 
 const DashboardPopularItems: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
   const { itemSales } = React.useContext(DashboardDataContext);
-  const { selectedStoreId } = useStoreContext();
+  // Server-side filtering is now done via API
   
-  // Filter item sales by selected store if needed
-  const filteredItems = useMemo(() => {
-    if (!itemSales) return undefined;
-    if (selectedStoreId === null) return itemSales;
-    return itemSales.filter(item => item.store_id === selectedStoreId);
-  }, [itemSales, selectedStoreId]);
-  
-  return <PopularItems {...props} preloadedData={filteredItems || undefined} />;
+  return <PopularItems {...props} preloadedData={itemSales || undefined} />;
 };
 
 const DashboardContent: React.FC = () => {
@@ -319,33 +298,33 @@ const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Fetch all dashboard data in parallel at component mount
   const { data: salesSummaryData } = useApi(
-    () => dbApi.getSalesSummary(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getSalesSummary(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: menuStatsData } = useApi(
-    () => dbApi.getMenuStats(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getMenuStats(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: categorySalesData } = useApi(
-    () => dbApi.getCategorySales(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getCategorySales(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: transactionItemsData } = useApi(
-    () => dbApi.getTransactionItems(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getTransactionItems(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: itemSalesData } = useApi(
-    () => dbApi.getItemSales(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getItemSales(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: storeSalesData } = useApi(
-    () => dbApi.getStoreSales(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getStoreSales(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   // Function to fetch dashboard data

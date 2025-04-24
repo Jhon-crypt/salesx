@@ -24,15 +24,19 @@ import {
   Stack,
   Breadcrumbs,
   Link,
-  useTheme
+  useTheme,
+  Button
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { format, subDays, parseISO } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import useApi from '../hooks/useApi';
-import { dbApi, TransactionItem } from '../services/api';
+import { dbApi } from '../services/api';
+import StoreSelector from '../components/common/StoreSelector';
+import { useStoreContext } from '../contexts/StoreContext';
 
 const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
   let color;
@@ -67,6 +71,8 @@ interface Order {
   status: string;
   date: Date;
   dateFormatted: string;
+  storeId: number;
+  storeName: string;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -79,10 +85,13 @@ const Transactions: React.FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   
+  // Get store context for filtering
+  const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
+  
   // Fetch transaction items from API
   const { data: transactionItems, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(dateFilter),
-    { deps: [dateFilter] }
+    () => dbApi.getTransactionItems(dateFilter, selectedStoreId),
+    { deps: [dateFilter, selectedStoreId] }
   );
   
   // Process transaction items into orders
@@ -92,13 +101,14 @@ const Transactions: React.FC = () => {
     // Group transactions by check_number (order ID)
     const orderMap = new Map<string, Order>();
     
+    // No need to filter by store here as it's handled by the API call now
     transactionItems.forEach(item => {
       if (!item || !item.check_number) return; // Skip invalid items
       
       const orderId = item.check_number.toString();
       
       // Format date - using business_date instead of transaction_date
-      const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
+      const dateStr = item.business_date || new Date().toISOString();
       const date = new Date(dateStr);
       
       if (!orderMap.has(orderId)) {
@@ -109,7 +119,9 @@ const Transactions: React.FC = () => {
           total: 0,
           status: 'Completed', // Default status
           date: date,
-          dateFormatted: format(date, 'MMM dd, yyyy h:mm a')
+          dateFormatted: format(date, 'MMM dd, yyyy h:mm a'),
+          storeId: item.store_id,
+          storeName: `Store ${item.store_id}` // Default store name
         });
       }
       
@@ -190,6 +202,12 @@ const Transactions: React.FC = () => {
     setDateFilter(event.target.value);
   };
 
+  // Add a button to fetch all transactions (no date filter)
+  const handleViewAll = () => {
+    setDateFilter('');
+    // The empty string will be handled by the API to show all transactions in the configured range
+  };
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* Page Header */}
@@ -216,8 +234,19 @@ const Transactions: React.FC = () => {
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
                 View and manage all customer transactions
+                {selectedStore && (
+                  <> for <b>{selectedStore.store_name}</b></>
+                )}
               </Typography>
             </Box>
+            
+            <StoreSelector 
+              stores={stores}
+              selectedStoreId={selectedStoreId}
+              onChange={setSelectedStoreId}
+              size="small"
+              showCount={false}
+            />
           </Box>
           
           <Breadcrumbs aria-label="breadcrumb">
@@ -240,21 +269,35 @@ const Transactions: React.FC = () => {
       
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
             <Box sx={{ flex: 1 }}>
-              <TextField
-                label="Date"
-                type="date"
-                value={dateFilter}
-                onChange={handleDateChange}
-                sx={{ width: '100%' }}
-                InputLabelProps={{ shrink: true }}
-              />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <TextField
+                  label="Date"
+                  type="date"
+                  value={dateFilter}
+                  onChange={handleDateChange}
+                  sx={{ width: '100%' }}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={handleViewAll}
+                  sx={{ whiteSpace: 'nowrap', height: '40px' }}
+                >
+                  View All
+                </Button>
+              </Box>
             </Box>
-            <Box sx={{ flex: 1 }}>
+            
+            <Box sx={{ flex: 2 }}>
               <TextField
                 fullWidth
-                placeholder="Search by order ID, customer, or item..."
+                label="Search transactions"
+                variant="outlined"
                 value={searchTerm}
                 onChange={handleSearchChange}
                 InputProps={{
@@ -264,95 +307,146 @@ const Transactions: React.FC = () => {
                     </InputAdornment>
                   ),
                 }}
+                placeholder="Search by ID, customer or item name..."
               />
             </Box>
-            <Box sx={{ flex: 1 }}>
+            
+            <Box sx={{ width: { xs: '100%', md: 220 } }}>
               <FormControl fullWidth>
                 <InputLabel id="status-filter-label">Status</InputLabel>
                 <Select
                   labelId="status-filter-label"
-                  id="status-filter"
                   value={statusFilter}
                   label="Status"
                   onChange={handleStatusChange}
+                  startAdornment={
+                    <FilterAltIcon sx={{ ml: 1, mr: 0.5, color: 'text.secondary' }} fontSize="small" />
+                  }
                 >
                   <MenuItem value="all">All Statuses</MenuItem>
                   <MenuItem value="completed">Completed</MenuItem>
                   <MenuItem value="pending">Pending</MenuItem>
                   <MenuItem value="canceled">Canceled</MenuItem>
-                  <MenuItem value="void">Void</MenuItem>
                 </Select>
               </FormControl>
             </Box>
           </Box>
+          
+          {/* Filter indicators */}
+          <Box sx={{ display: 'flex', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            {selectedStoreId !== null && (
+              <Chip 
+                label={`Store: ${selectedStore?.store_name || selectedStoreId}`} 
+                color="primary" 
+                variant="outlined" 
+                size="small"
+                onDelete={() => setSelectedStoreId(null)} 
+              />
+            )}
+            {statusFilter !== 'all' && (
+              <Chip 
+                label={`Status: ${statusFilter}`} 
+                color="secondary" 
+                variant="outlined" 
+                size="small" 
+                onDelete={() => setStatusFilter('all')}
+              />
+            )}
+            {searchTerm && (
+              <Chip 
+                label={`Search: ${searchTerm}`} 
+                color="info" 
+                variant="outlined" 
+                size="small" 
+                onDelete={() => setSearchTerm('')}
+              />
+            )}
+          </Box>
+          
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 5 }}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Typography color="error" align="center" sx={{ my: 5 }}>
+              Error loading transactions. Please try again.
+            </Typography>
+          ) : paginatedOrders.length === 0 ? (
+            <Typography align="center" sx={{ my: 5 }}>
+              No transactions found for the selected criteria.
+            </Typography>
+          ) : (
+            <>
+              <TableContainer component={Paper} variant="outlined">
+                <Table sx={{ minWidth: 650 }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Customer</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Items</TableCell>
+                      {selectedStoreId === null && (
+                        <TableCell sx={{ fontWeight: 'bold' }}>Store</TableCell>
+                      )}
+                      <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedOrders.map(order => (
+                      <TableRow 
+                        key={order.id}
+                        hover
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:hover': { backgroundColor: theme.palette.action.hover },
+                          '&:last-child td, &:last-child th': { border: 0 }
+                        }}
+                      >
+                        <TableCell>#{order.id}</TableCell>
+                        <TableCell>{order.customer}</TableCell>
+                        <TableCell>
+                          <Typography noWrap sx={{ maxWidth: 200 }}>
+                            {order.items.length > 0 
+                              ? (order.items.length > 3 
+                                ? `${order.items.slice(0, 3).join(', ')} +${order.items.length - 3} more` 
+                                : order.items.join(', '))
+                              : 'No items'
+                            }
+                          </Typography>
+                        </TableCell>
+                        {selectedStoreId === null && (
+                          <TableCell>{order.storeName}</TableCell>
+                        )}
+                        <TableCell>{order.dateFormatted}</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>${order.total.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <StatusChip 
+                            status={order.status}
+                            label={order.status}
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <Pagination 
+                  count={totalPages} 
+                  page={page} 
+                  onChange={handlePageChange} 
+                  color="primary" 
+                  showFirstButton 
+                  showLastButton
+                />
+              </Box>
+            </>
+          )}
         </CardContent>
       </Card>
-      
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
-          <CircularProgress />
-        </Box>
-      ) : error ? (
-        <Typography color="error">
-          Error loading transaction data: {error.message}
-        </Typography>
-      ) : filteredOrders.length === 0 ? (
-        <Typography color="text.secondary" align="center" sx={{ my: 4 }}>
-          No transactions found
-        </Typography>
-      ) : (
-        <>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Transaction ID</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Items</TableCell>
-                  <TableCell align="right">Total</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedOrders.map((order) => (
-                  <TableRow key={order.id} hover>
-                    <TableCell component="th" scope="row">
-                      #{order.id}
-                    </TableCell>
-                    <TableCell>{order.customer}</TableCell>
-                    <TableCell>
-                      {order.items.length > 2
-                        ? `${order.items[0]}, ${order.items[1]} +${order.items.length - 2} more`
-                        : order.items.join(', ')}
-                    </TableCell>
-                    <TableCell align="right">${order.total.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <StatusChip
-                        label={order.status}
-                        status={order.status}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{order.dateFormatted}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          
-          {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-              <Pagination 
-                count={totalPages} 
-                page={page} 
-                onChange={handlePageChange} 
-                color="primary" 
-              />
-            </Box>
-          )}
-        </>
-      )}
     </Box>
   );
 };
