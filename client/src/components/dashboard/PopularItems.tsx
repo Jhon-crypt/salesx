@@ -31,6 +31,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
+  backgroundColor: theme.palette.background.paper,
 }));
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
@@ -78,8 +79,8 @@ const processItems = (items: ItemSalesData[]) => {
     if (!itemMap.has(itemNumber)) {
       itemMap.set(itemNumber, {
         id: itemNumber,
-        name: itemName,
-        category: 'Menu Item', // Default category
+        name: itemName || `Item #${item.item_number}`,
+        category: 'Menu Item', // Default category since category_name is not available
         sales: 0,
         quantity: 0,
         price: 0,

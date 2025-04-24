@@ -46,6 +46,7 @@ import useApi from '../hooks/useApi';
 import { dbApi, ItemSalesByHour } from '../services/api';
 import { useStoreContext } from '../contexts/StoreContext';
 import StoreSelector from '../components/common/StoreSelector';
+import DatePicker from '../components/common/DatePicker';
 
 interface MenuItemOption {
   id: number;
@@ -73,9 +74,10 @@ const MenuItemsByHour: React.FC = () => {
   const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
   
   // Fetch all menu items for the dropdown
-  const { data: allItemSales } = useApi(() => dbApi.getItemSales(startDate, selectedStoreId), {
-    deps: [startDate, selectedStoreId]
-  });
+  const { data: allItemSales } = useApi(
+    () => dbApi.getItemSales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
+  );
   
   // Fetch hourly data with date range
   const { data: hourlyData, isLoading, error } = useApi(
@@ -206,6 +208,21 @@ const MenuItemsByHour: React.FC = () => {
     ? format(new Date(startDate), 'MMM d, yyyy')
     : `${format(new Date(startDate), 'MMM d')} - ${format(new Date(endDate), 'MMM d, yyyy')}`;
   
+  // Add a function to view the last 30 days of data
+  const handleViewLast30Days = () => {
+    const today = new Date();
+    const last30Days = format(subDays(today, 30), 'yyyy-MM-dd');
+    const todayFormatted = format(today, 'yyyy-MM-dd');
+    
+    console.log('Setting date range to last 30 days:', { 
+      from: last30Days, 
+      to: todayFormatted 
+    });
+    
+    setStartDate(last30Days);
+    setEndDate(todayFormatted);
+  };
+  
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* Page Header */}
@@ -277,66 +294,72 @@ const MenuItemsByHour: React.FC = () => {
       {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <TextField
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={handleStartDateChange}
-              sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
-              InputLabelProps={{ shrink: true }}
-            />
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <DatePicker
+                  label="Start Date"
+                  value={startDate}
+                  onChange={handleStartDateChange}
+                  sx={{ width: '100%' }}
+                />
+                <DatePicker
+                  label="End Date"
+                  value={endDate}
+                  onChange={handleEndDateChange}
+                  sx={{ width: '100%' }}
+                />
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={handleViewLast30Days}
+                  sx={{ whiteSpace: 'nowrap', height: '40px' }}
+                >
+                  Last 30 Days
+                </Button>
+              </Box>
+            </Box>
             
-            <TextField
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={handleEndDateChange}
-              sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
-              InputLabelProps={{ shrink: true }}
-            />
-            
-            <Box sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}>
+            <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
+              <FormControl sx={{ flex: 1, minWidth: 150 }}>
+                <InputLabel id="menu-item-select-label">Menu Item</InputLabel>
+                <Select
+                  labelId="menu-item-select-label"
+                  id="menu-item-select"
+                  value={selectedMenuItem === null ? 'all' : selectedMenuItem}
+                  label="Menu Item"
+                  onChange={handleMenuItemChange}
+                >
+                  <MenuItem value="all">All Items</MenuItem>
+                  {menuItems.map(item => (
+                    <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
+              <TextField
+                label="Search"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                sx={{ flex: 1 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
               <StoreSelector
                 stores={stores}
                 selectedStoreId={selectedStoreId}
                 onChange={setSelectedStoreId}
                 size="small"
+                label="Filter by store"
                 showCount={false}
               />
             </Box>
-            
-            <FormControl sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}>
-              <InputLabel id="menu-item-select-label">Menu Item</InputLabel>
-              <Select
-                labelId="menu-item-select-label"
-                id="menu-item-select"
-                value={selectedMenuItem === null ? 'all' : selectedMenuItem}
-                label="Menu Item"
-                onChange={handleMenuItemChange}
-              >
-                <MenuItem value="all">All Menu Items</MenuItem>
-                {menuItems.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <TextField
-              placeholder="Search items..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
           </Box>
         </CardContent>
       </Card>
@@ -484,7 +507,7 @@ const MenuItemsByHour: React.FC = () => {
                            item.hour === 12 ? '12 PM' : 
                            `${item.hour - 12} PM`}
                         </TableCell>
-                        <TableCell>{item.item_name}</TableCell>
+                        <TableCell>{item.item_name || `Item #${item.item_number}`}</TableCell>
                         <TableCell>{item.store_name}</TableCell>
                         <TableCell align="right">{item.quantity_sold}</TableCell>
                         <TableCell align="right">${item.sales_amount.toFixed(2)}</TableCell>

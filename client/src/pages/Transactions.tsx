@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -28,15 +28,16 @@ import {
   Button
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { format, subDays, parseISO } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import useApi from '../hooks/useApi';
-import { dbApi } from '../services/api';
+import { dbApi, TransactionItem, ApiResponse } from '../services/api';
 import StoreSelector from '../components/common/StoreSelector';
 import { useStoreContext } from '../contexts/StoreContext';
+import DatePicker from '../components/common/DatePicker';
+import { getDefaultDateRange, getLast30DaysRange, formatDateTimeForDisplay } from '../utils/dateUtils';
 
 const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
   let color;
@@ -63,189 +64,131 @@ const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
   };
 });
 
+interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
 interface Order {
   id: string;
   customer: string;
-  items: string[];
-  total: number;
+  date: string;
+  dateFormatted?: string;
   status: string;
-  date: Date;
-  dateFormatted: string;
-  storeId: number;
-  storeName: string;
+  store: string;
+  store_id: number;
+  total: number;
+  items: OrderItem[];
 }
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 100;
 
 const Transactions: React.FC = () => {
   const theme = useTheme();
-  const yesterday = React.useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), []);
+  const { startDate: defaultStartDate, endDate: defaultEndDate } = getDefaultDateRange();
+  
+  // State management
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
-  const [startDate, setStartDate] = useState(yesterday);
-  const [endDate, setEndDate] = useState(yesterday);
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
   
   // Get store context for filtering
   const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
   
-  // Fetch transaction items from API
-  const { data: transactionItems, isLoading, error } = useApi(
+  // Fetch transaction items from API with proper type
+  const { data: apiResponse, isLoading, error } = useApi<ApiResponse<TransactionItem>>(
     () => dbApi.getTransactionItems(startDate, endDate, selectedStoreId),
     { deps: [startDate, endDate, selectedStoreId] }
   );
-  
-  // Add debug logging
-  console.log('API Response:', {
-    isLoading,
-    error,
-    transactionItems: transactionItems?.length || 0,
-    startDate,
-    endDate,
-    selectedStoreId
-  });
-  
+
   // Process transaction items into orders
-  const orders = React.useMemo(() => {
-    if (!transactionItems || transactionItems.length === 0) {
-      console.log('No transaction items found');
-      return [];
+  useMemo(() => {
+    console.log('Processing transaction items:', apiResponse?.data?.length);
+    if (!apiResponse?.data) {
+      setFilteredOrders([]);
+      return;
     }
 
-    console.log(`Processing ${transactionItems.length} transaction items`);
+    const transactionItems = apiResponse.data;
+    console.log(`Processing ${transactionItems.length} transaction items from API response`);
     
-    // Group transactions by check_number (order ID)
     const orderMap = new Map<string, Order>();
     
-    // No need to filter by store here as it's handled by the API call now
-    transactionItems.forEach(item => {
-      if (!item || !item.check_number) return; // Skip invalid items
+    transactionItems.forEach((item) => {
+      if (!item || !item.check_number) return;
       
-      const orderId = item.check_number.toString();
+      const orderKey = `${item.store_id}-${item.check_number}`;
+      const dateStr = item.business_date;
       
-      // Format date - using business_date instead of transaction_date
-      const dateStr = item.business_date || new Date().toISOString();
-      const date = new Date(dateStr);
-      
-      if (!orderMap.has(orderId)) {
-        orderMap.set(orderId, {
-          id: orderId,
-          customer: `Guest ${orderId.slice(-4)}`,
-          items: [],
+      if (!orderMap.has(orderKey)) {
+        orderMap.set(orderKey, {
+          id: orderKey,
+          customer: `Order #${item.check_number}`,
+          date: dateStr,
+          dateFormatted: formatDateTimeForDisplay(dateStr),
+          status: item.record_type === 0 ? 'Completed' : 'Void',
+          store: item.store_name || `Store ${item.store_id}`,
+          store_id: item.store_id,
           total: 0,
-          status: 'Completed', // Default status
-          date: date,
-          dateFormatted: format(date, 'MMM dd, yyyy h:mm a'),
-          storeId: item.store_id,
-          storeName: item.store_name || `Store ${item.store_id}` // Use store_name from the joined table
+          items: []
         });
       }
+
+      const order = orderMap.get(orderKey)!;
       
-      const order = orderMap.get(orderId)!;
-      // Use item_id if menu_item_name is not available
-      const itemName = item.menu_item_name || `Item #${item.item_id}`;
-      
-      // Don't add duplicate items, just increment quantity
-      const existingItemIndex = order.items.findIndex(i => i === itemName);
-      if (existingItemIndex === -1) {
-        order.items.push(itemName);
+      // Only add items with a price > 0 to avoid duplicates from modifiers
+      if (item.price > 0) {
+        order.items.push({
+          id: item.item_id.toString(),
+          name: `Item #${item.item_id} (Cat: ${item.category_id})`,
+          quantity: item.quantity,
+          price: item.price
+        });
+        order.total += item.price * item.quantity;
       }
-      
-      // Use price if item_sell_price is not available
-      const itemPrice = typeof item.item_sell_price === 'number' ? item.item_sell_price : 
-                        typeof item.price === 'number' ? item.price : 0;
-      
-      order.total += itemPrice * (item.quantity || 1);
     });
     
-    const processedOrders = Array.from(orderMap.values())
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
+    console.log('Processed orders:', orderMap.size);
     
-    console.log(`Processed ${orderMap.size} distinct orders`, processedOrders);
-    
-    // Convert map to array and sort by date (most recent first)
-    return processedOrders;
-  }, [transactionItems]);
-  
-  // Apply filters
-  useEffect(() => {
-    let result = orders;
-    console.log('Applying filters to orders:', {
-      ordersCount: orders.length,
-      startDate,
-      endDate,
-      searchTerm,
-      statusFilter
-    });
-    
-    // Apply date filter
-    if (startDate && endDate) {
-      try {
-        const start = parseISO(startDate);
-        const end = parseISO(endDate);
-        // Add one day to end date to include the end date in the range
-        const adjustedEnd = new Date(end);
-        adjustedEnd.setDate(adjustedEnd.getDate() + 1);
-        
-        console.log('Date range:', {
-          startFormatted: start.toISOString(),
-          endFormatted: end.toISOString(),
-          adjustedEndFormatted: adjustedEnd.toISOString()
-        });
-        
-        result = result.filter(order => {
-          const orderDate = new Date(order.date);
-          // Use direct comparison instead of isWithinInterval
-          const isWithin = orderDate >= start && orderDate < adjustedEnd;
-          
-          if (!isWithin) {
-            console.log('Filtering out order due to date:', {
-              orderId: order.id,
-              orderDateISO: orderDate.toISOString(),
-              orderDateStr: orderDate.toString(),
-              start: start.toISOString(),
-              end: end.toISOString()
-            });
-          }
-          return isWithin;
-        });
-      } catch (error) {
-        console.error('Error filtering by date:', error);
-      }
-    }
-    
-    console.log('After date filter:', result.length);
+    let processedOrders = Array.from(orderMap.values());
     
     // Apply search filter
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      result = result.filter(
+      processedOrders = processedOrders.filter(
         order => 
-          order.id.toLowerCase().includes(lowerSearchTerm) ||
           order.customer.toLowerCase().includes(lowerSearchTerm) ||
-          order.items.some(item => item.toLowerCase().includes(lowerSearchTerm))
+          order.store.toLowerCase().includes(lowerSearchTerm) ||
+          order.items.some(item => item.name.toLowerCase().includes(lowerSearchTerm))
       );
-      console.log('After search filter:', result.length);
+      console.log('After search filter:', processedOrders.length);
     }
     
     // Apply status filter
     if (statusFilter !== 'all') {
-      result = result.filter(order => order.status.toLowerCase() === statusFilter.toLowerCase());
-      console.log('After status filter:', result.length);
+      processedOrders = processedOrders.filter(order => order.status.toLowerCase() === statusFilter.toLowerCase());
+      console.log('After status filter:', processedOrders.length);
     }
     
-    console.log('Final filtered orders:', result.length);
-    setFilteredOrders(result);
-    setPage(1); // Reset to first page when filters change
-  }, [orders, searchTerm, statusFilter, startDate, endDate]);
+    // Update filtered orders and reset pagination
+    setFilteredOrders(processedOrders);
+    setPage(1);
+  }, [apiResponse, searchTerm, statusFilter]);
   
-  // Pagination
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-  const paginatedOrders = filteredOrders.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE
-  );
+  // Get current page items
+  const currentPageOrders = React.useMemo(() => {
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredOrders.slice(startIndex, endIndex);
+  }, [filteredOrders, page]);
+
+  // Update pagination calculation based on filtered orders
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ITEMS_PER_PAGE));
   
   const handleStatusChange = (event: SelectChangeEvent) => {
     setStatusFilter(event.target.value);
@@ -261,26 +204,32 @@ const Transactions: React.FC = () => {
 
   const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setStartDate(event.target.value);
+    setPage(1); // Reset to first page when date changes
   };
   
   const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setEndDate(event.target.value);
+    setPage(1); // Reset to first page when date changes
   };
 
-  // Add a button to fetch all transactions (no date filter)
+  // Update the view all handler
   const handleViewAll = () => {
-    // Get date 30 days ago for a reasonable default range
-    const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
-    const today = format(new Date(), 'yyyy-MM-dd');
-    
-    console.log('Setting date range to last 30 days:', { 
-      from: thirtyDaysAgo, 
-      to: today 
-    });
-    
-    setStartDate(thirtyDaysAgo);
-    setEndDate(today);
+    const { startDate: newStartDate, endDate: newEndDate } = getLast30DaysRange();
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+    setPage(1); // Reset to first page when date range changes
   };
+
+  // Add debug logging for date filtering
+  useEffect(() => {
+    console.log('Date filter changed:', {
+      startDate,
+      endDate,
+      selectedStoreId,
+      totalRecords: apiResponse?.count,
+      recordsInView: apiResponse?.data?.length
+    });
+  }, [startDate, endDate, selectedStoreId, apiResponse]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -345,26 +294,19 @@ const Transactions: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
             <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: { xs: 2, md: 0 } }}>
+                <DatePicker
                   label="Start Date"
-                  type="date"
                   value={startDate}
                   onChange={handleStartDateChange}
                   sx={{ width: '100%' }}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
                 />
-                <TextField
+                <DatePicker
                   label="End Date"
-                  type="date"
                   value={endDate}
                   onChange={handleEndDateChange}
                   sx={{ width: '100%' }}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
+                  minDate={startDate} // Prevent end date being before start date
                 />
                 <Button 
                   variant="outlined" 
@@ -455,7 +397,7 @@ const Transactions: React.FC = () => {
             <Typography color="error" align="center" sx={{ my: 5 }}>
               Error loading transactions. Please try again.
             </Typography>
-          ) : paginatedOrders.length === 0 ? (
+          ) : filteredOrders.length === 0 ? (
             <Typography align="center" sx={{ my: 5 }}>
               No transactions found for the selected criteria.
             </Typography>
@@ -477,7 +419,7 @@ const Transactions: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {paginatedOrders.map(order => (
+                    {currentPageOrders.map(order => (
                       <TableRow 
                         key={order.id}
                         hover
@@ -493,14 +435,14 @@ const Transactions: React.FC = () => {
                           <Typography noWrap sx={{ maxWidth: 200 }}>
                             {order.items.length > 0 
                               ? (order.items.length > 3 
-                                ? `${order.items.slice(0, 3).join(', ')} +${order.items.length - 3} more` 
-                                : order.items.join(', '))
+                                ? `${order.items.slice(0, 3).map(item => item.name).join(', ')} +${order.items.length - 3} more` 
+                                : order.items.map(item => item.name).join(', '))
                               : 'No items'
                             }
                           </Typography>
                         </TableCell>
                         {selectedStoreId === null && (
-                          <TableCell>{order.storeName}</TableCell>
+                          <TableCell>{order.store}</TableCell>
                         )}
                         <TableCell>{order.dateFormatted}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>${order.total.toFixed(2)}</TableCell>
@@ -517,7 +459,10 @@ const Transactions: React.FC = () => {
                 </Table>
               </TableContainer>
               
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Showing {Math.min((page - 1) * ITEMS_PER_PAGE + 1, filteredOrders.length)} - {Math.min(page * ITEMS_PER_PAGE, filteredOrders.length)} of {filteredOrders.length} records
+                </Typography>
                 <Pagination 
                   count={totalPages} 
                   page={page} 

@@ -24,10 +24,11 @@ import {
   Stack,
   Breadcrumbs,
   Link,
+  Button,
   useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { format } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import CancelIcon from '@mui/icons-material/Cancel';
 import HomeIcon from '@mui/icons-material/Home';
@@ -36,6 +37,7 @@ import useApi from '../hooks/useApi';
 import { dbApi } from '../services/api';
 import { useStoreContext } from '../contexts/StoreContext';
 import StoreSelector from '../components/common/StoreSelector';
+import DatePicker from '../components/common/DatePicker';
 
 interface VoidTransactionDisplay {
   id: string;
@@ -78,13 +80,18 @@ const VoidTransactions: React.FC = () => {
   const [page, setPage] = useState(1);
   const [filteredTransactions, setFilteredTransactions] = useState<VoidTransactionDisplay[]>([]);
   
+  // Add state for date filtering
+  const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  const [startDate, setStartDate] = useState(yesterday);
+  const [endDate, setEndDate] = useState(yesterday);
+  
   // Get store context for filtering
   const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
   
-  // Fetch transaction items from API
+  // Fetch transaction items from API with date range
   const { data: voidTransactions, isLoading, error } = useApi(
-    () => dbApi.getVoidTransactions(undefined, selectedStoreId),
-    { deps: [selectedStoreId] }
+    () => dbApi.getVoidTransactions(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   // Process void transactions into more display-friendly format
@@ -168,6 +175,30 @@ const VoidTransactions: React.FC = () => {
     (sum, transaction) => sum + transaction.price, 
     0
   );
+  
+  // Handle date changes
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(event.target.value);
+  };
+  
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(event.target.value);
+  };
+  
+  // Add a function to view the last 30 days of data
+  const handleViewLast30Days = () => {
+    const today = new Date();
+    const last30Days = format(subDays(today, 30), 'yyyy-MM-dd');
+    const todayFormatted = format(today, 'yyyy-MM-dd');
+    
+    console.log('Setting date range to last 30 days:', { 
+      from: last30Days, 
+      to: todayFormatted 
+    });
+    
+    setStartDate(last30Days);
+    setEndDate(todayFormatted);
+  };
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -251,10 +282,36 @@ const VoidTransactions: React.FC = () => {
       
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
             <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: { xs: 2, md: 0 } }}>
+                <DatePicker
+                  label="Start Date"
+                  value={startDate}
+                  onChange={handleStartDateChange}
+                  sx={{ width: '100%' }}
+                />
+                <DatePicker
+                  label="End Date"
+                  value={endDate}
+                  onChange={handleEndDateChange}
+                  sx={{ width: '100%' }}
+                />
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={handleViewLast30Days}
+                  sx={{ whiteSpace: 'nowrap', height: '40px' }}
+                >
+                  Last 30 Days
+                </Button>
+              </Box>
+            </Box>
+            
+            <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
               <TextField
                 fullWidth
+                label="Search"
                 placeholder="Search by ID, employee, manager, store..."
                 value={searchTerm}
                 onChange={handleSearchChange}
@@ -266,9 +323,8 @@ const VoidTransactions: React.FC = () => {
                   ),
                 }}
               />
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <FormControl fullWidth>
+              
+              <FormControl sx={{ minWidth: 200 }}>
                 <InputLabel id="reason-filter-label">Void Reason</InputLabel>
                 <Select
                   labelId="reason-filter-label"

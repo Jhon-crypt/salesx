@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useContext, useCallback } from 'react';
-import { Box, Typography, Breadcrumbs, Link, useTheme, Paper, Stack, TextField } from '@mui/material';
+import { Box, Typography, Breadcrumbs, Link, useTheme, Paper, Stack } from '@mui/material';
 import { format } from 'date-fns';
 import StatsCard from '../components/dashboard/StatsCard';
 import SalesChart from '../components/dashboard/SalesChart';
@@ -13,6 +13,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import GroupIcon from '@mui/icons-material/Group';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import { useStoreContext } from '../contexts/StoreContext';
+import DatePicker from '../components/common/DatePicker';
 
 // API hooks
 import useApi from '../hooks/useApi';
@@ -185,28 +186,20 @@ const DashboardContent: React.FC = () => {
               </Typography>
             </Breadcrumbs>
             
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <DatePicker
                 label="Start Date"
-                type="date"
                 value={startDate}
                 onChange={handleStartDateChange}
                 sx={{ width: 160 }}
                 size="small"
-                InputLabelProps={{
-                  shrink: true,
-                }}
               />
-              <TextField
+              <DatePicker
                 label="End Date"
-                type="date"
                 value={endDate}
                 onChange={handleEndDateChange}
                 sx={{ width: 160 }}
                 size="small"
-                InputLabelProps={{
-                  shrink: true,
-                }}
               />
             </Box>
           </Box>

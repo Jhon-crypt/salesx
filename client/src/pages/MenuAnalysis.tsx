@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import DatePicker from '../components/common/DatePicker';
 import {
   Box,
   Typography,
@@ -395,21 +396,19 @@ const MenuAnalysis: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
             <Box sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
-                  label="Start Date"
-                  type="date"
-                  value={startDate}
-                  onChange={handleStartDateChange}
-                  sx={{ width: '100%' }}
-                  InputLabelProps={{ shrink: true }}
+                <DatePicker
+      label="Start Date"
+      value={startDate}
+      onChange={handleStartDateChange}
+      sx={{ width: '100%' }}
+                  
                 />
-                <TextField
-                  label="End Date"
-                  type="date"
-                  value={endDate}
-                  onChange={handleEndDateChange}
-                  sx={{ width: '100%' }}
-                  InputLabelProps={{ shrink: true }}
+                <DatePicker
+      label="End Date"
+      value={endDate}
+      onChange={handleEndDateChange}
+      sx={{ width: '100%' }}
+                  
                 />
                 <Button 
                   variant="outlined" 
@@ -547,7 +546,7 @@ const MenuAnalysis: React.FC = () => {
                 <TableBody>
                   {filteredItems.map((item, index) => (
                     <TableRow key={`${item.id}-${item.store}-${index}`} hover>
-                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.name || `Item #${item.id}`}</TableCell>
                       <TableCell>{item.store}</TableCell>
                       <TableCell align="right">{item.quantity}</TableCell>
                       <TableCell align="right">${item.sales.toFixed(2)}</TableCell>

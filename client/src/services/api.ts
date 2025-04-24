@@ -96,18 +96,10 @@ export interface TransactionItem {
   business_date: string;
   price: number;
   quantity: number;
-  record_type: string;
+  record_type: number;
   category_id: number;
-  order_mode_id: number;
   store_id: number;
-  employee_id: number;
-  store_name?: string;
-  // Keep these for backward compatibility
-  id?: number;
-  transaction_date?: string;
-  menu_item_name?: string;
-  item_sell_price?: number;
-  void_flag?: number;
+  store_name: string;
 }
 
 export interface VoidTransaction {
@@ -154,6 +146,18 @@ export interface StoreInfo {
   guest_count?: number;
 }
 
+export interface ApiResponse<T> {
+  success: boolean;
+  count: number;
+  data: T[];
+}
+
+const adjustEndDate = (date: string) => {
+  const adjustedDate = new Date(date);
+  adjustedDate.setHours(23, 59, 59, 999);
+  return adjustedDate.toISOString();
+};
+
 // API functions for database endpoints
 export const dbApi = {
   // Test connection
@@ -176,7 +180,12 @@ export const dbApi = {
   getStoreSales: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
     if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+    if (endDate) {
+      // Adjust end date to include the full day
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+      params.end_date = adjustedEndDate.toISOString().split('T')[0];
+    }
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales', { params });
@@ -213,7 +222,12 @@ export const dbApi = {
   getItemSales: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
     if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+    if (endDate) {
+      // Adjust end date to include the full day
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+      params.end_date = adjustedEndDate.toISOString().split('T')[0];
+    }
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: ItemSalesData[]}>('/db/item-sales', { params });
@@ -224,7 +238,12 @@ export const dbApi = {
   getItemSalesByHour: async (startDate?: string, endDate?: string, store_id?: number | null, item_id?: number | null) => {
     const params: Record<string, string | number> = {};
     if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+    if (endDate) {
+      // Adjust end date to include the full day
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+      params.end_date = adjustedEndDate.toISOString().split('T')[0];
+    }
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     if (item_id !== null && item_id !== undefined) params.item_id = item_id;
     
@@ -233,20 +252,29 @@ export const dbApi = {
   },
 
   // Get transaction items
-  getTransactionItems: async (startDate?: string, endDate?: string, store_id?: number | null) => {
+  getTransactionItems: async (startDate?: string, endDate?: string, store_id?: number | null): Promise<ApiResponse<TransactionItem>> => {
     const params: Record<string, string | number> = {};
     if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
-    if (store_id !== null && store_id !== undefined) params.store_id = store_id;
+    if (endDate) params.end_date = adjustEndDate(endDate);
+    // Only include store_id if it's a positive number
+    if (store_id && store_id > 0) params.store_id = store_id;
     
-    const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
-    return response.data.data;
+    console.log('Fetching transactions with params:', params);
+    const response = await api.get<ApiResponse<TransactionItem>>('/db/transaction-items', { params });
+    console.log('API Response:', {
+      count: response.data.count,
+      recordCount: response.data.data.length,
+      firstRecord: response.data.data[0],
+      params
+    });
+    return response.data;
   },
 
   // Get void transactions
-  getVoidTransactions: async (date?: string, store_id?: number | null) => {
+  getVoidTransactions: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = adjustEndDate(endDate);
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: VoidTransaction[]}>('/db/void-transactions', { params });
@@ -275,7 +303,7 @@ export const dbApi = {
   getSalesSummary: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
     if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+    if (endDate) params.end_date = adjustEndDate(endDate);
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary', { params });
@@ -286,7 +314,7 @@ export const dbApi = {
   getMenuStats: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
     if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+    if (endDate) params.end_date = adjustEndDate(endDate);
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats', { params });
@@ -297,7 +325,7 @@ export const dbApi = {
   getCategorySales: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
     if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+    if (endDate) params.end_date = adjustEndDate(endDate);
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });
