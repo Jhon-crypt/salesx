@@ -82,7 +82,7 @@ const processTransactions = (transactions: TransactionItem[]): Order[] => {
     
     const orderId = item.check_number.toString();
     
-    // Format date - using business_date instead of transaction_date
+    // Format date - using business_date
     const dateStr = item.business_date ? new Date(item.business_date).toISOString() : new Date().toISOString();
     const date = new Date(dateStr);
     
@@ -92,22 +92,19 @@ const processTransactions = (transactions: TransactionItem[]): Order[] => {
         customer: `Guest ${orderId.slice(-4)}`,
         items: [],
         total: 0,
-        status: 'Completed', // Default status
+        status: item.record_type === 0 ? 'Completed' : 'Void',
         date: date,
         dateFormatted: format(date, 'MMM dd, yyyy h:mm a')
       });
     }
     
     const order = orderMap.get(orderId)!;
-    // Use item_id if menu_item_name is not available
-    const itemName = item.menu_item_name || `Item #${item.item_id}`;
+    // Use item_id since there's no item_name in the interface
+    const itemName = `Item #${item.item_id}`;
     order.items.push(itemName);
     
-    // Use price if item_sell_price is not available
-    const itemPrice = typeof item.item_sell_price === 'number' ? item.item_sell_price : 
-                      typeof item.price === 'number' ? item.price : 0;
-    
-    order.total += itemPrice;
+    // Use price and quantity from the transaction item
+    order.total += (item.price || 0) * (item.quantity || 1);
   });
   
   // Convert map to array and sort by date (most recent first)
@@ -133,7 +130,12 @@ const RecentOrders: React.FC<RecentOrdersProps> = ({
   
   // Process transaction items into orders
   const orders = React.useMemo(() => {
-    return processTransactions(transactionItems || []);
+    // Handle API response structure
+    const transactions = Array.isArray(transactionItems) 
+      ? transactionItems 
+      : transactionItems?.data || [];
+    
+    return processTransactions(transactions);
   }, [transactionItems]);
 
   return (
