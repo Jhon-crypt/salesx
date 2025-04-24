@@ -317,7 +317,7 @@ router.get('/item-sales', async (req, res) => {
 // Get menu items sold by hour
 router.get('/item-sales-by-hour', async (req, res) => {
   try {
-    const { date, store_id, item_id } = req.query;
+    const { start_date, end_date, store_id, item_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -341,12 +341,19 @@ router.get('/item-sales-by-hour', async (req, res) => {
     
     const request = pool.request();
     
-    if (date) {
-      // If specific date is requested
-      query += ` AND CONVERT(DATE, sales.DateOfBusiness) = @date`;
-      request.input('date', sql.Date, new Date(date));
+    // Handle date range
+    if (start_date && end_date) {
+      // If both start and end dates are provided
+      query += ` AND CONVERT(DATE, sales.DateOfBusiness) >= @start_date`;
+      query += ` AND CONVERT(DATE, sales.DateOfBusiness) <= @end_date`;
+      request.input('start_date', sql.Date, new Date(start_date));
+      request.input('end_date', sql.Date, new Date(end_date));
+    } else if (start_date) {
+      // If only start date is provided, use it as a single day filter
+      query += ` AND CONVERT(DATE, sales.DateOfBusiness) = @start_date`;
+      request.input('start_date', sql.Date, new Date(start_date));
     } else {
-      // Default to yesterday if no date specified
+      // Default to yesterday if no dates specified
       query += ` AND sales.DateOfBusiness >= DATEADD(day, -1, GETDATE())`;
       query += ` AND sales.DateOfBusiness < GETDATE()`;
     }
@@ -367,7 +374,7 @@ router.get('/item-sales-by-hour', async (req, res) => {
       GROUP BY
         i.LongName, i.ItemId, sales.Hour, sales.FKStoreId, s.Name, sales.DateOfBusiness
       ORDER BY
-        sales.Hour ASC, quantity_sold DESC
+        sales.DateOfBusiness, sales.Hour ASC, quantity_sold DESC
     `;
     
     const result = await request.query(query);

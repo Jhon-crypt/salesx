@@ -218,9 +218,10 @@ export const dbApi = {
   },
 
   // Get menu items sold by hour
-  getItemSalesByHour: async (date?: string, store_id?: number | null, item_id?: number | null) => {
+  getItemSalesByHour: async (startDate?: string, endDate?: string, store_id?: number | null, item_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     if (item_id !== null && item_id !== undefined) params.item_id = item_id;
     
