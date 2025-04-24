@@ -314,37 +314,42 @@ router.get('/item-sales', async (req, res) => {
   }
 });
 
-// Get hourly menu item sales
-router.get('/hourly-item-sales', async (req, res) => {
+// Get menu items sold by hour
+router.get('/item-sales-by-hour', async (req, res) => {
   try {
     const { date, store_id, item_id } = req.query;
     await pool.connect();
     
-    if (!date) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Date parameter is required'
-      });
-    }
-    
     let query = `
       SELECT
-        DATEPART(HOUR, sales.DateOfBusiness) as hour,
         i.LongName as item_name,
         i.ItemId as item_number,
+        sales.Hour as hour,
+        sales.FKStoreId as store_id,
+        s.Name as store_name,
         COUNT(*) as quantity_sold,
-        SUM(sales.Price) as sales_amount
+        SUM(sales.Price) as sales_amount,
+        sales.DateOfBusiness as business_date
       FROM
         dbo.DpvHstGndItem sales WITH (NOLOCK)
       JOIN
         dbo.Item i WITH (NOLOCK) ON sales.FKItemId = i.ItemId
       JOIN
         dbo.gblStore s WITH (NOLOCK) ON sales.FKStoreId = s.StoreId
-      WHERE CONVERT(DATE, sales.DateOfBusiness) = @date
+      WHERE 1=1
     `;
     
-    const request = pool.request()
-      .input('date', sql.Date, new Date(date));
+    const request = pool.request();
+    
+    if (date) {
+      // If specific date is requested
+      query += ` AND CONVERT(DATE, sales.DateOfBusiness) = @date`;
+      request.input('date', sql.Date, new Date(date));
+    } else {
+      // Default to yesterday if no date specified
+      query += ` AND sales.DateOfBusiness >= DATEADD(day, -1, GETDATE())`;
+      query += ` AND sales.DateOfBusiness < GETDATE()`;
+    }
     
     if (store_id) {
       // Filter by store if provided
@@ -353,85 +358,30 @@ router.get('/hourly-item-sales', async (req, res) => {
     }
     
     if (item_id) {
-      // Filter by item if provided
+      // Filter by specific menu item if provided
       query += ` AND sales.FKItemId = @item_id`;
       request.input('item_id', sql.Int, parseInt(item_id, 10));
     }
     
     query += `
       GROUP BY
-        DATEPART(HOUR, sales.DateOfBusiness), i.LongName, i.ItemId
+        i.LongName, i.ItemId, sales.Hour, sales.FKStoreId, s.Name, sales.DateOfBusiness
       ORDER BY
-        hour ASC, quantity_sold DESC
+        sales.Hour ASC, quantity_sold DESC
     `;
     
     const result = await request.query(query);
     
-    // Format the result to include all 24 hours (0-23) with zeros for missing hours
-    const hourlyData = [];
-    
-    if (item_id) {
-      // If specific item requested, show all 24 hours for that item
-      let itemName = '';
-      let itemNumber = 0;
-      
-      // Find item details from the results
-      if (result.recordset.length > 0) {
-        itemName = result.recordset[0].item_name;
-        itemNumber = result.recordset[0].item_number;
-      } else if (result.recordset.length === 0) {
-        // Get item details directly if no hourly data exists
-        const itemQuery = `
-          SELECT ItemId as item_number, LongName as item_name
-          FROM dbo.Item 
-          WHERE ItemId = @item_id
-        `;
-        const itemResult = await pool.request()
-          .input('item_id', sql.Int, parseInt(item_id, 10))
-          .query(itemQuery);
-          
-        if (itemResult.recordset.length > 0) {
-          itemName = itemResult.recordset[0].item_name;
-          itemNumber = itemResult.recordset[0].item_number;
-        }
-      }
-      
-      // Generate data for all 24 hours
-      for (let h = 0; h < 24; h++) {
-        const hourData = result.recordset.find(r => r.hour === h);
-        hourlyData.push({
-          hour: h,
-          hour_label: `${h}:00`,
-          item_name: itemName,
-          item_number: itemNumber,
-          quantity_sold: hourData ? hourData.quantity_sold : 0,
-          sales_amount: hourData ? hourData.sales_amount : 0
-        });
-      }
-    } else {
-      // If no specific item, return the raw results
-      result.recordset.forEach(record => {
-        hourlyData.push({
-          hour: record.hour,
-          hour_label: `${record.hour}:00`,
-          item_name: record.item_name,
-          item_number: record.item_number,
-          quantity_sold: record.quantity_sold,
-          sales_amount: record.sales_amount
-        });
-      });
-    }
-    
     res.json({ 
       success: true, 
-      count: hourlyData.length,
-      data: hourlyData
+      count: result.recordset.length,
+      data: result.recordset
     });
   } catch (err) {
-    console.error('Hourly item sales query error:', err);
+    console.error('Item sales by hour query error:', err);
     res.status(500).json({ 
       success: false, 
-      message: 'Error retrieving hourly item sales data',
+      message: 'Error retrieving item sales by hour data',
       error: err.message
     });
   }
