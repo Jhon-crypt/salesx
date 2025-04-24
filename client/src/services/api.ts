@@ -101,6 +101,7 @@ export interface TransactionItem {
   order_mode_id: number;
   store_id: number;
   employee_id: number;
+  store_name?: string;
   // Keep these for backward compatibility
   id?: number;
   transaction_date?: string;
@@ -172,9 +173,10 @@ export const dbApi = {
   },
 
   // Get store sales with store information
-  getStoreSales: async (date?: string, store_id?: number | null) => {
+  getStoreSales: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: SalesData[]}>('/db/store-sales', { params });
@@ -208,9 +210,10 @@ export const dbApi = {
   },
 
   // Get item sales data
-  getItemSales: async (date?: string, store_id?: number | null) => {
+  getItemSales: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: ItemSalesData[]}>('/db/item-sales', { params });
@@ -218,9 +221,10 @@ export const dbApi = {
   },
 
   // Get menu items sold by hour
-  getItemSalesByHour: async (date?: string, store_id?: number | null, item_id?: number | null) => {
+  getItemSalesByHour: async (startDate?: string, endDate?: string, store_id?: number | null, item_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     if (item_id !== null && item_id !== undefined) params.item_id = item_id;
     
@@ -229,9 +233,10 @@ export const dbApi = {
   },
 
   // Get transaction items
-  getTransactionItems: async (date?: string, store_id?: number | null) => {
+  getTransactionItems: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: TransactionItem[]}>('/db/transaction-items', { params });
@@ -267,9 +272,10 @@ export const dbApi = {
   },
 
   // Get current sales summary for dashboard
-  getSalesSummary: async (date?: string, store_id?: number | null) => {
+  getSalesSummary: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: SalesSummary}>('/db/sales-summary', { params });
@@ -277,9 +283,10 @@ export const dbApi = {
   },
   
   // Get menu items statistics
-  getMenuStats: async (date?: string, store_id?: number | null) => {
+  getMenuStats: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: MenuStats}>('/db/menu-stats', { params });
@@ -287,9 +294,10 @@ export const dbApi = {
   },
   
   // Get sales by category for revenue breakdown
-  getCategorySales: async (date?: string, store_id?: number | null) => {
+  getCategorySales: async (startDate?: string, endDate?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
-    if (date) params.date = date;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });

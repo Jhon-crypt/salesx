@@ -62,7 +62,8 @@ const MenuItemsByHour: React.FC = () => {
   const yesterday = useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), []);
   
   // State for filters and data display
-  const [selectedDate, setSelectedDate] = useState<string>(yesterday);
+  const [startDate, setStartDate] = useState<string>(yesterday);
+  const [endDate, setEndDate] = useState<string>(yesterday);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMenuItem, setSelectedMenuItem] = useState<number | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItemOption[]>([]);
@@ -72,14 +73,14 @@ const MenuItemsByHour: React.FC = () => {
   const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
   
   // Fetch all menu items for the dropdown
-  const { data: allItemSales } = useApi(() => dbApi.getItemSales(selectedDate, selectedStoreId), {
-    deps: [selectedDate, selectedStoreId]
+  const { data: allItemSales } = useApi(() => dbApi.getItemSales(startDate, selectedStoreId), {
+    deps: [startDate, selectedStoreId]
   });
   
-  // Fetch hourly data
+  // Fetch hourly data with date range
   const { data: hourlyData, isLoading, error } = useApi(
-    () => dbApi.getItemSalesByHour(selectedDate, selectedStoreId, selectedMenuItem),
-    { deps: [selectedDate, selectedStoreId, selectedMenuItem] }
+    () => dbApi.getItemSalesByHour(startDate, endDate, selectedStoreId, selectedMenuItem),
+    { deps: [startDate, endDate, selectedStoreId, selectedMenuItem] }
   );
   
   // Process menu items for dropdown when itemSales data changes
@@ -126,8 +127,12 @@ const MenuItemsByHour: React.FC = () => {
   }, [hourlyData, searchTerm]);
   
   // Handle filter changes
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDate(event.target.value);
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(event.target.value);
+  };
+  
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(event.target.value);
   };
   
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,7 +173,7 @@ const MenuItemsByHour: React.FC = () => {
   // Export to CSV function
   const handleExport = () => {
     // Create CSV content
-    const headers = ['Hour', 'Item Name', 'Item Number', 'Store', 'Quantity Sold', 'Sales Amount'];
+    const headers = ['Hour', 'Item Name', 'Item Number', 'Store', 'Quantity Sold', 'Sales Amount', 'Date'];
     const csvRows = [
       headers.join(','),
       ...filteredData.map(item => [
@@ -177,7 +182,8 @@ const MenuItemsByHour: React.FC = () => {
         item.item_number,
         `"${item.store_name}"`,
         item.quantity_sold,
-        item.sales_amount.toFixed(2)
+        item.sales_amount.toFixed(2),
+        item.business_date.split('T')[0] // Format date for CSV
       ].join(','))
     ];
     
@@ -188,12 +194,17 @@ const MenuItemsByHour: React.FC = () => {
     const url = URL.createObjectURL(blob);
     
     link.setAttribute('href', url);
-    link.setAttribute('download', `menu-items-by-hour-${selectedDate}.csv`);
+    link.setAttribute('download', `menu-items-by-hour-${startDate}-to-${endDate}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+  
+  // Create date range string for titles/subtitles
+  const dateRangeText = startDate === endDate 
+    ? format(new Date(startDate), 'MMM d, yyyy')
+    : `${format(new Date(startDate), 'MMM d')} - ${format(new Date(endDate), 'MMM d, yyyy')}`;
   
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -223,7 +234,7 @@ const MenuItemsByHour: React.FC = () => {
                 Track hourly sales of menu items across stores
                 {selectedStore && (
                   <> for <b>{selectedStore.store_name}</b></>
-                )}
+                )} ({dateRangeText})
               </Typography>
             </Box>
             <Button 
@@ -268,10 +279,19 @@ const MenuItemsByHour: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             <TextField
-              label="Date"
+              label="Start Date"
               type="date"
-              value={selectedDate}
-              onChange={handleDateChange}
+              value={startDate}
+              onChange={handleStartDateChange}
+              sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
+              InputLabelProps={{ shrink: true }}
+            />
+            
+            <TextField
+              label="End Date"
+              type="date"
+              value={endDate}
+              onChange={handleEndDateChange}
               sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
               InputLabelProps={{ shrink: true }}
             />
@@ -444,6 +464,7 @@ const MenuItemsByHour: React.FC = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
+                      <TableCell>Date</TableCell>
                       <TableCell>Hour</TableCell>
                       <TableCell>Item Name</TableCell>
                       <TableCell>Store</TableCell>
@@ -454,6 +475,9 @@ const MenuItemsByHour: React.FC = () => {
                   <TableBody>
                     {filteredData.map((item, index) => (
                       <TableRow key={`${item.item_number}-${item.hour}-${index}`} hover>
+                        <TableCell>
+                          {new Date(item.business_date).toLocaleDateString()}
+                        </TableCell>
                         <TableCell>
                           {item.hour === 0 ? '12 AM' : 
                            item.hour < 12 ? `${item.hour} AM` : 

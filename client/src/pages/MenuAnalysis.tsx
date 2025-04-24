@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -130,25 +130,42 @@ const MenuAnalysis: React.FC = () => {
   const [sortBy, setSortBy] = useState('sales');
   const [activeTab, setActiveTab] = useState(0);
   const [filteredItems, setFilteredItems] = useState<ProcessedItemSale[]>([]);
-  const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const yesterday = useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), []);
+  const [startDate, setStartDate] = useState(yesterday);
+  const [endDate, setEndDate] = useState(yesterday);
   
   // Get store context for filtering
   const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
   
-  // Fetch data
+  // Fetch data with improved debugging
   const { data: itemSales, isLoading: isLoadingItems, error: itemsError } = useApi(
-    () => dbApi.getItemSales(dateFilter, selectedStoreId),
-    { deps: [dateFilter, selectedStoreId] }
+    () => dbApi.getItemSales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
+  // Add debugging logs
+  console.log('MenuAnalysis API Response:', {
+    isLoadingItems,
+    itemsError,
+    itemSalesCount: itemSales?.length || 0,
+    startDate,
+    endDate,
+    selectedStoreId
+  });
+  
   const { data: categorySales, isLoading: isLoadingCategories, error: categoriesError } = useApi(
-    () => dbApi.getCategorySales(dateFilter, selectedStoreId),
-    { deps: [dateFilter, selectedStoreId] }
+    () => dbApi.getCategorySales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   // Process and prepare data when raw data changes or filters change
   useEffect(() => {
-    if (!itemSales) return;
+    if (!itemSales) {
+      console.log('No item sales data available');
+      return;
+    }
+    
+    console.log(`Processing ${itemSales.length} menu items`);
     
     // Find maximum sales to determine performance
     const maxSales = Math.max(...itemSales.map(item => item.sales_amount));
@@ -183,44 +200,73 @@ const MenuAnalysis: React.FC = () => {
     // Apply filters
     let filtered = [...processed];
     
-    // Date filter
-    if (dateFilter) {
-      const filterDate = parseISO(dateFilter);
-      filtered = filtered.filter(item => {
-        const itemDate = parseISO(item.date);
-        return (
-          itemDate.getFullYear() === filterDate.getFullYear() &&
-          itemDate.getMonth() === filterDate.getMonth() &&
-          itemDate.getDate() === filterDate.getDate()
-        );
-      });
+    // Date filter for date range
+    if (startDate && endDate) {
+      try {
+        const start = parseISO(startDate);
+        const end = parseISO(endDate);
+        // Add one day to end date to include the end date in the range
+        const adjustedEnd = new Date(end);
+        adjustedEnd.setDate(adjustedEnd.getDate() + 1);
+        
+        console.log('Menu date range:', {
+          startFormatted: start.toISOString(),
+          endFormatted: end.toISOString(),
+          adjustedEndFormatted: adjustedEnd.toISOString()
+        });
+        
+        filtered = filtered.filter(item => {
+          const itemDate = new Date(item.date);
+          // Use direct comparison instead of interval check
+          const isWithin = itemDate >= start && itemDate < adjustedEnd;
+          
+          // Only log items being filtered out for troubleshooting
+          if (!isWithin) {
+            console.log('Filtering out menu item due to date:', {
+              itemName: item.name,
+              itemId: item.id,
+              dateISO: itemDate.toISOString(),
+              start: start.toISOString(),
+              end: adjustedEnd.toISOString()
+            });
+          }
+          return isWithin;
+        });
+      } catch (error) {
+        console.error('Error filtering menu items by date:', error);
+      }
     }
+    
+    console.log('After date filter:', filtered.length);
     
     // Search filter
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        item => 
-          item.name.toLowerCase().includes(lowerSearchTerm) ||
-          item.store.toLowerCase().includes(lowerSearchTerm)
+      filtered = filtered.filter(item => 
+        item.name.toLowerCase().includes(lowerSearchTerm) || 
+        item.store.toLowerCase().includes(lowerSearchTerm)
       );
+      console.log('After search filter:', filtered.length);
     }
     
-    // Sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'quantity':
-          return b.quantity - a.quantity;
-        case 'sales':
-        default:
-          return b.sales - a.sales;
-      }
-    });
+    // Sort items
+    switch (sortBy) {
+      case 'sales':
+        filtered.sort((a, b) => b.sales - a.sales);
+        break;
+      case 'quantity':
+        filtered.sort((a, b) => b.quantity - a.quantity);
+        break;
+      case 'name':
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      default:
+        filtered.sort((a, b) => b.sales - a.sales);
+    }
     
+    console.log('Final filtered menu items:', filtered.length);
     setFilteredItems(filtered);
-  }, [itemSales, searchTerm, sortBy, dateFilter]);
+  }, [itemSales, startDate, endDate, searchTerm, sortBy]);
   
   // Handle filter changes
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,8 +281,27 @@ const MenuAnalysis: React.FC = () => {
     setActiveTab(newValue);
   };
   
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDateFilter(event.target.value);
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(event.target.value);
+  };
+  
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(event.target.value);
+  };
+  
+  // Add a function to view the last 30 days of data
+  const handleViewLast30Days = () => {
+    const today = new Date();
+    const last30Days = format(subDays(today, 30), 'yyyy-MM-dd');
+    const todayFormatted = format(today, 'yyyy-MM-dd');
+    
+    console.log('Setting date range to last 30 days:', { 
+      from: last30Days, 
+      to: todayFormatted 
+    });
+    
+    setStartDate(last30Days);
+    setEndDate(todayFormatted);
   };
   
   // Format data for charts
@@ -246,8 +311,9 @@ const MenuAnalysis: React.FC = () => {
     quantity: item.quantity
   }));
   
-  // Simulate export functionality
+  // Export data function
   const handleExport = () => {
+    // In a real app, this would generate a CSV or Excel file
     alert('Export functionality would be implemented here');
   };
   
@@ -326,46 +392,70 @@ const MenuAnalysis: React.FC = () => {
       {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <TextField
-              label="Date"
-              type="date"
-              value={dateFilter}
-              onChange={handleDateChange}
-              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              placeholder="Search items..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <TextField
-              select
-              label="Sort By"
-              value={sortBy}
-              onChange={handleSortChange}
-              sx={{ flex: 1, minWidth: 150 }}
-            >
-              <MenuItem value="sales">Sales Amount</MenuItem>
-              <MenuItem value="quantity">Quantity Sold</MenuItem>
-              <MenuItem value="name">Item Name</MenuItem>
-            </TextField>
-            <Box sx={{ flex: 1, minWidth: 150 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  value={startDate}
+                  onChange={handleStartDateChange}
+                  sx={{ width: '100%' }}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="End Date"
+                  type="date"
+                  value={endDate}
+                  onChange={handleEndDateChange}
+                  sx={{ width: '100%' }}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={handleViewLast30Days}
+                  sx={{ whiteSpace: 'nowrap', height: '40px' }}
+                >
+                  Last 30 Days
+                </Button>
+              </Box>
+            </Box>
+            
+            <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
+              <TextField
+                label="Search items..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                fullWidth
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <TextField
+                select
+                label="Sort By"
+                value={sortBy}
+                onChange={handleSortChange}
+                sx={{ minWidth: 150 }}
+              >
+                <MenuItem value="sales">Sales Amount</MenuItem>
+                <MenuItem value="quantity">Quantity Sold</MenuItem>
+                <MenuItem value="name">Item Name</MenuItem>
+              </TextField>
+              
               <StoreSelector
                 stores={stores}
                 selectedStoreId={selectedStoreId}
                 onChange={setSelectedStoreId}
                 size="small"
                 showCount={false}
+                label="Filter by store"
               />
             </Box>
           </Box>

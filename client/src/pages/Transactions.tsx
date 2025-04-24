@@ -79,25 +79,42 @@ const ITEMS_PER_PAGE = 10;
 
 const Transactions: React.FC = () => {
   const theme = useTheme();
+  const yesterday = React.useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), []);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
-  const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(yesterday);
+  const [endDate, setEndDate] = useState(yesterday);
   
   // Get store context for filtering
   const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
   
   // Fetch transaction items from API
   const { data: transactionItems, isLoading, error } = useApi(
-    () => dbApi.getTransactionItems(dateFilter, selectedStoreId),
-    { deps: [dateFilter, selectedStoreId] }
+    () => dbApi.getTransactionItems(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
+  
+  // Add debug logging
+  console.log('API Response:', {
+    isLoading,
+    error,
+    transactionItems: transactionItems?.length || 0,
+    startDate,
+    endDate,
+    selectedStoreId
+  });
   
   // Process transaction items into orders
   const orders = React.useMemo(() => {
-    if (!transactionItems || transactionItems.length === 0) return [];
+    if (!transactionItems || transactionItems.length === 0) {
+      console.log('No transaction items found');
+      return [];
+    }
 
+    console.log(`Processing ${transactionItems.length} transaction items`);
+    
     // Group transactions by check_number (order ID)
     const orderMap = new Map<string, Order>();
     
@@ -121,43 +138,84 @@ const Transactions: React.FC = () => {
           date: date,
           dateFormatted: format(date, 'MMM dd, yyyy h:mm a'),
           storeId: item.store_id,
-          storeName: `Store ${item.store_id}` // Default store name
+          storeName: item.store_name || `Store ${item.store_id}` // Use store_name from the joined table
         });
       }
       
       const order = orderMap.get(orderId)!;
       // Use item_id if menu_item_name is not available
       const itemName = item.menu_item_name || `Item #${item.item_id}`;
-      order.items.push(itemName);
+      
+      // Don't add duplicate items, just increment quantity
+      const existingItemIndex = order.items.findIndex(i => i === itemName);
+      if (existingItemIndex === -1) {
+        order.items.push(itemName);
+      }
       
       // Use price if item_sell_price is not available
       const itemPrice = typeof item.item_sell_price === 'number' ? item.item_sell_price : 
                         typeof item.price === 'number' ? item.price : 0;
       
-      order.total += itemPrice;
+      order.total += itemPrice * (item.quantity || 1);
     });
     
-    // Convert map to array and sort by date (most recent first)
-    return Array.from(orderMap.values())
+    const processedOrders = Array.from(orderMap.values())
       .sort((a, b) => b.date.getTime() - a.date.getTime());
+    
+    console.log(`Processed ${orderMap.size} distinct orders`, processedOrders);
+    
+    // Convert map to array and sort by date (most recent first)
+    return processedOrders;
   }, [transactionItems]);
   
   // Apply filters
   useEffect(() => {
     let result = orders;
+    console.log('Applying filters to orders:', {
+      ordersCount: orders.length,
+      startDate,
+      endDate,
+      searchTerm,
+      statusFilter
+    });
     
     // Apply date filter
-    if (dateFilter) {
-      const filterDate = parseISO(dateFilter);
-      result = result.filter(order => {
-        const orderDate = new Date(order.date);
-        return (
-          orderDate.getFullYear() === filterDate.getFullYear() &&
-          orderDate.getMonth() === filterDate.getMonth() &&
-          orderDate.getDate() === filterDate.getDate()
-        );
-      });
+    if (startDate && endDate) {
+      try {
+        const start = parseISO(startDate);
+        const end = parseISO(endDate);
+        // Add one day to end date to include the end date in the range
+        const adjustedEnd = new Date(end);
+        adjustedEnd.setDate(adjustedEnd.getDate() + 1);
+        
+        console.log('Date range:', {
+          startFormatted: start.toISOString(),
+          endFormatted: end.toISOString(),
+          adjustedEndFormatted: adjustedEnd.toISOString()
+        });
+        
+        result = result.filter(order => {
+          const orderDate = new Date(order.date);
+          // Use direct comparison instead of isWithinInterval
+          const isWithin = orderDate >= start && orderDate < adjustedEnd;
+          
+          if (!isWithin) {
+            console.log('Filtering out order due to date:', {
+              orderId: order.id,
+              orderDateISO: orderDate.toISOString(),
+              orderDateStr: orderDate.toString(),
+              start: start.toISOString(),
+              end: end.toISOString()
+            });
+          }
+          return isWithin;
+        });
+      } catch (error) {
+        console.error('Error filtering by date:', error);
+      }
     }
+    
+    console.log('After date filter:', result.length);
     
     // Apply search filter
     if (searchTerm) {
@@ -168,16 +226,19 @@ const Transactions: React.FC = () => {
           order.customer.toLowerCase().includes(lowerSearchTerm) ||
           order.items.some(item => item.toLowerCase().includes(lowerSearchTerm))
       );
+      console.log('After search filter:', result.length);
     }
     
     // Apply status filter
     if (statusFilter !== 'all') {
       result = result.filter(order => order.status.toLowerCase() === statusFilter.toLowerCase());
+      console.log('After status filter:', result.length);
     }
     
+    console.log('Final filtered orders:', result.length);
     setFilteredOrders(result);
     setPage(1); // Reset to first page when filters change
-  }, [orders, searchTerm, statusFilter, dateFilter]);
+  }, [orders, searchTerm, statusFilter, startDate, endDate]);
   
   // Pagination
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
@@ -198,14 +259,27 @@ const Transactions: React.FC = () => {
     setPage(value);
   };
 
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDateFilter(event.target.value);
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(event.target.value);
+  };
+  
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(event.target.value);
   };
 
   // Add a button to fetch all transactions (no date filter)
   const handleViewAll = () => {
-    setDateFilter('');
-    // The empty string will be handled by the API to show all transactions in the configured range
+    // Get date 30 days ago for a reasonable default range
+    const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+    const today = format(new Date(), 'yyyy-MM-dd');
+    
+    console.log('Setting date range to last 30 days:', { 
+      from: thirtyDaysAgo, 
+      to: today 
+    });
+    
+    setStartDate(thirtyDaysAgo);
+    setEndDate(today);
   };
 
   return (
@@ -273,10 +347,20 @@ const Transactions: React.FC = () => {
             <Box sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <TextField
-                  label="Date"
+                  label="Start Date"
                   type="date"
-                  value={dateFilter}
-                  onChange={handleDateChange}
+                  value={startDate}
+                  onChange={handleStartDateChange}
+                  sx={{ width: '100%' }}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+                <TextField
+                  label="End Date"
+                  type="date"
+                  value={endDate}
+                  onChange={handleEndDateChange}
                   sx={{ width: '100%' }}
                   InputLabelProps={{
                     shrink: true,
@@ -288,7 +372,7 @@ const Transactions: React.FC = () => {
                   onClick={handleViewAll}
                   sx={{ whiteSpace: 'nowrap', height: '40px' }}
                 >
-                  View All
+                  Last 30 Days
                 </Button>
               </Box>
             </Box>
