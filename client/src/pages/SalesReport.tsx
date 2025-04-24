@@ -87,6 +87,7 @@ const StatCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
+  padding: theme.spacing(2),
 }));
 
 const TrendIndicator = ({ value }: { value: number }) => {
@@ -117,28 +118,70 @@ const SalesReport: React.FC = () => {
   
   // Fetch sales data
   const { data: salesData, isLoading, error } = useApi(
-    () => dbApi.getStoreSales(startDate, selectedStoreId),
-    { deps: [startDate, selectedStoreId] }
+    () => dbApi.getStoreSales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
+  
+  // Add debugging logs
+  console.log('SalesReport API Response:', {
+    isLoading,
+    error,
+    salesData: salesData?.length || 0,
+    startDate,
+    endDate,
+    selectedStoreId
+  });
   
   // Process and prepare data when raw data changes or filters change
   useEffect(() => {
-    if (!salesData) return;
+    if (!salesData) {
+      console.log('No sales data available');
+      return;
+    }
     
+    console.log(`Processing ${salesData.length} sales records`);
     let filtered = [...salesData];
     
     // Filter by date range
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      if (isValid(start) && isValid(end)) {
-        filtered = filtered.filter(item => {
-          const itemDate = new Date(item.transaction_date);
-          return itemDate >= start && itemDate <= end;
+      try {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        // Add one day to end date to include the end date in the range
+        const adjustedEnd = new Date(end);
+        adjustedEnd.setDate(adjustedEnd.getDate() + 1);
+        
+        console.log('Sales date range:', {
+          startFormatted: start.toISOString(),
+          endFormatted: end.toISOString(),
+          adjustedEndFormatted: adjustedEnd.toISOString()
         });
+        
+        if (isValid(start) && isValid(adjustedEnd)) {
+          filtered = filtered.filter(item => {
+            const itemDate = new Date(item.transaction_date);
+            // Use direct comparison instead of interval check
+            const isWithin = itemDate >= start && itemDate < adjustedEnd;
+            
+            if (!isWithin) {
+              console.log('Filtering out sales record due to date:', {
+                storeId: item.store_id,
+                storeName: item.store_name,
+                dateISO: itemDate.toISOString(),
+                dateString: itemDate.toString(),
+                start: start.toISOString(),
+                end: adjustedEnd.toISOString()
+              });
+            }
+            return isWithin;
+          });
+        }
+      } catch (error) {
+        console.error('Error filtering sales by date:', error);
       }
     }
+    
+    console.log('After date filter:', filtered.length);
     
     // Filter by search term
     if (searchTerm) {
@@ -146,6 +189,7 @@ const SalesReport: React.FC = () => {
       filtered = filtered.filter(item => 
         (item.store_name && item.store_name.toLowerCase().includes(lowerSearchTerm))
       );
+      console.log('After search filter:', filtered.length);
     }
     
     // Sort by date ascending for charts
@@ -153,6 +197,7 @@ const SalesReport: React.FC = () => {
       new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
     );
     
+    console.log('Final filtered sales data:', filtered.length);
     setFilteredData(filtered);
   }, [salesData, startDate, endDate, searchTerm]);
   
@@ -233,6 +278,13 @@ const SalesReport: React.FC = () => {
   // Simulate export functionality
   const handleExport = () => {
     alert('Export functionality would be implemented here');
+  };
+  
+  const handleViewLast30Days = () => {
+    const today = new Date();
+    const last30Days = format(subDays(today, 30), 'yyyy-MM-dd');
+    setStartDate(last30Days);
+    setEndDate(today.toISOString().split('T')[0]);
   };
   
   return (
@@ -333,51 +385,110 @@ const SalesReport: React.FC = () => {
         </StatCard>
       </Box>
 
+      {/* Additional Stats */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
+        <StatCard sx={{ flex: '1 1 calc(33% - 16px)', minWidth: 200 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Avg. Daily Sales
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              ${avgDailySales.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </Typography>
+          </CardContent>
+        </StatCard>
+
+        <StatCard sx={{ flex: '1 1 calc(33% - 16px)', minWidth: 200 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Avg. Order Value
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              ${avgOrderValue.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </Typography>
+          </CardContent>
+        </StatCard>
+
+        <StatCard sx={{ flex: '1 1 calc(33% - 16px)', minWidth: 200 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Avg. Customers/Day
+            </Typography>
+            <Typography variant="h4" fontWeight="bold">
+              {avgCustomersPerDay.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+            </Typography>
+          </CardContent>
+        </StatCard>
+      </Box>
+
       {/* Filters */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <TextField
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={handleStartDateChange}
-              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={handleEndDateChange}
-              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
-              InputLabelProps={{ shrink: true }}
-            />
-            <Box sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}>
-              <StoreSelector
-                stores={stores}
-                selectedStoreId={selectedStoreId}
-                onChange={setSelectedStoreId}
-                size="small"
-                showCount={false}
-              />
+      <Box sx={{ mb: 3 }}>
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <TextField
+                    label="Start Date"
+                    type="date"
+                    value={startDate}
+                    onChange={handleStartDateChange}
+                    sx={{ width: '100%' }}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                  <TextField
+                    label="End Date"
+                    type="date"
+                    value={endDate}
+                    onChange={handleEndDateChange}
+                    sx={{ width: '100%' }}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                  <Button 
+                    variant="outlined" 
+                    size="small" 
+                    onClick={handleViewLast30Days}
+                    sx={{ whiteSpace: 'nowrap', height: '40px' }}
+                  >
+                    Last 30 Days
+                  </Button>
+                </Box>
+              </Box>
+              
+              <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  label="Search stores"
+                  variant="outlined"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                  placeholder="Search by store name..."
+                />
+                
+                <StoreSelector 
+                  stores={stores}
+                  selectedStoreId={selectedStoreId}
+                  onChange={setSelectedStoreId}
+                  size="small"
+                  label="Filter by store"
+                  showCount={false}
+                />
+              </Box>
             </Box>
-            <TextField
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </Box>
       
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
@@ -422,7 +533,7 @@ const SalesReport: React.FC = () => {
                     tickFormatter={formatSalesValue}
                   />
                   <RechartsTooltip 
-                    formatter={(value: any) => [`${formatSalesValue(value)}`, 'Sales']}
+                    formatter={(value: number | string) => [`${formatSalesValue(value)}`, 'Sales']}
                   />
                   <Line
                     type="monotone"
