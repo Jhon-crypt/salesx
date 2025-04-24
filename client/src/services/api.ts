@@ -79,6 +79,17 @@ export interface ItemSalesData {
   sales_amount: number;
 }
 
+export interface ItemSalesByHour {
+  item_name: string;
+  item_number: number;
+  hour: number;
+  store_id: number;
+  store_name: string;
+  quantity_sold: number;
+  sales_amount: number;
+  business_date: string;
+}
+
 export interface TransactionItem {
   item_id: number;
   check_number: number;
@@ -130,15 +141,6 @@ export interface CategorySales {
   value: number;
   color: string;
   percentage: number;
-}
-
-export interface HourlySalesData {
-  hour: number;
-  hour_label: string;
-  item_name: string;
-  item_number: number;
-  quantity_sold: number;
-  sales_amount: number;
 }
 
 export interface StoreInfo {
@@ -215,6 +217,17 @@ export const dbApi = {
     return response.data.data;
   },
 
+  // Get menu items sold by hour
+  getItemSalesByHour: async (date?: string, store_id?: number | null, item_id?: number | null) => {
+    const params: Record<string, string | number> = {};
+    if (date) params.date = date;
+    if (store_id !== null && store_id !== undefined) params.store_id = store_id;
+    if (item_id !== null && item_id !== undefined) params.item_id = item_id;
+    
+    const response = await api.get<{success: boolean, data: ItemSalesByHour[]}>('/db/item-sales-by-hour', { params });
+    return response.data.data;
+  },
+
   // Get transaction items
   getTransactionItems: async (date?: string, store_id?: number | null) => {
     const params: Record<string, string | number> = {};
@@ -280,19 +293,6 @@ export const dbApi = {
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });
-    return response.data.data;
-  },
-  
-  // Get hourly sales data for menu items
-  getHourlyItemSales: async (date: string, store_id?: number | null, item_id?: number | null) => {
-    const params: Record<string, string | number> = {
-      date // date is required
-    };
-    
-    if (store_id !== null && store_id !== undefined) params.store_id = store_id;
-    if (item_id !== null && item_id !== undefined) params.item_id = item_id;
-    
-    const response = await api.get<{success: boolean, data: HourlySalesData[]}>('/db/hourly-item-sales', { params });
     return response.data.data;
   },
 };
