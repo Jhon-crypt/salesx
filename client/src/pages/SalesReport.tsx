@@ -46,6 +46,8 @@ import useApi from '../hooks/useApi';
 import { dbApi, SalesData } from '../services/api';
 import { useStoreContext } from '../contexts/StoreContext';
 import StoreSelector from '../components/common/StoreSelector';
+import DatePicker from '../components/common/DatePicker';
+import { getDefaultDateRange, getLast30DaysRange, formatDateForDisplay } from '../utils/dateUtils';
 
 // Define tabs for report views
 interface TabPanelProps {
@@ -106,9 +108,11 @@ const TrendIndicator = ({ value }: { value: number }) => {
 
 const SalesReport: React.FC = () => {
   const theme = useTheme();
+  const { startDate: defaultStartDate, endDate: defaultEndDate } = getDefaultDateRange();
+  
   // State for filters and data display
-  const [startDate, setStartDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [filteredData, setFilteredData] = useState<SalesData[]>([]);
@@ -262,7 +266,7 @@ const SalesReport: React.FC = () => {
   
   // Format data for charts
   const chartData = filteredData.map(item => ({
-    date: format(new Date(item.transaction_date), 'MMM dd'),
+    date: formatDateForDisplay(item.transaction_date),
     sales: item.daily_sales,
     orders: item.check_count,
     customers: item.guest_count,
@@ -281,10 +285,9 @@ const SalesReport: React.FC = () => {
   };
   
   const handleViewLast30Days = () => {
-    const today = new Date();
-    const last30Days = format(subDays(today, 30), 'yyyy-MM-dd');
-    setStartDate(last30Days);
-    setEndDate(today.toISOString().split('T')[0]);
+    const { startDate: newStartDate, endDate: newEndDate } = getLast30DaysRange();
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
   };
   
   return (
@@ -427,26 +430,18 @@ const SalesReport: React.FC = () => {
           <CardContent>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
               <Box sx={{ flex: 1 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <TextField
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: { xs: 2, md: 0 } }}>
+                  <DatePicker
                     label="Start Date"
-                    type="date"
                     value={startDate}
                     onChange={handleStartDateChange}
                     sx={{ width: '100%' }}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
                   />
-                  <TextField
+                  <DatePicker
                     label="End Date"
-                    type="date"
                     value={endDate}
                     onChange={handleEndDateChange}
                     sx={{ width: '100%' }}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
                   />
                   <Button 
                     variant="outlined" 

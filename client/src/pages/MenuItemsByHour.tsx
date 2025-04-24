@@ -46,6 +46,7 @@ import useApi from '../hooks/useApi';
 import { dbApi, ItemSalesByHour } from '../services/api';
 import { useStoreContext } from '../contexts/StoreContext';
 import StoreSelector from '../components/common/StoreSelector';
+import DatePicker from '../components/common/DatePicker';
 
 interface MenuItemOption {
   id: number;
@@ -296,21 +297,17 @@ const MenuItemsByHour: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
             <Box sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
+                <DatePicker
                   label="Start Date"
-                  type="date"
                   value={startDate}
                   onChange={handleStartDateChange}
                   sx={{ width: '100%' }}
-                  InputLabelProps={{ shrink: true }}
                 />
-                <TextField
+                <DatePicker
                   label="End Date"
-                  type="date"
                   value={endDate}
                   onChange={handleEndDateChange}
                   sx={{ width: '100%' }}
-                  InputLabelProps={{ shrink: true }}
                 />
                 <Button 
                   variant="outlined" 
@@ -510,7 +507,7 @@ const MenuItemsByHour: React.FC = () => {
                            item.hour === 12 ? '12 PM' : 
                            `${item.hour - 12} PM`}
                         </TableCell>
-                        <TableCell>{item.item_name}</TableCell>
+                        <TableCell>{item.item_name || `Item #${item.item_number}`}</TableCell>
                         <TableCell>{item.store_name}</TableCell>
                         <TableCell align="right">{item.quantity_sold}</TableCell>
                         <TableCell align="right">${item.sales_amount.toFixed(2)}</TableCell>

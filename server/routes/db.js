@@ -493,7 +493,7 @@ router.get('/transaction-items', async (req, res) => {
 // Get void transactions based on GndVoid data dictionary
 router.get('/void-transactions', async (req, res) => {
   try {
-    const { date, store_id } = req.query;
+    const { date, start_date, end_date, store_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -515,7 +515,12 @@ router.get('/void-transactions', async (req, res) => {
     
     const request = pool.request();
     
-    if (date) {
+    if (start_date && end_date) {
+      // If date range is specified
+      query += ` AND DateOfBusiness BETWEEN @start_date AND @end_date`;
+      request.input('start_date', sql.Date, new Date(start_date));
+      request.input('end_date', sql.Date, new Date(end_date));
+    } else if (date) {
       // If specific date is requested
       query += ` AND CONVERT(DATE, DateOfBusiness) = @date`;
       request.input('date', sql.Date, new Date(date));

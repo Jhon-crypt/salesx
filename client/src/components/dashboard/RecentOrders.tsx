@@ -31,6 +31,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
+  backgroundColor: theme.palette.background.paper,
 }));
 
 const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
@@ -58,12 +59,23 @@ const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
   };
 });
 
+// Define interface for order type
+interface Order {
+  id: string;
+  customer: string;
+  items: string[];
+  total: number;
+  status: string;
+  date: Date;
+  dateFormatted: string;
+}
+
 // Process transaction items into order-like format
-const processTransactions = (transactions: any[]) => {
+const processTransactions = (transactions: TransactionItem[]): Order[] => {
   if (!transactions || transactions.length === 0) return [];
 
   // Group transactions by check_number (order ID)
-  const orderMap = new Map<string, any>();
+  const orderMap = new Map<string, Order>();
   
   transactions.forEach(item => {
     if (!item || !item.check_number) return; // Skip invalid items
@@ -86,7 +98,7 @@ const processTransactions = (transactions: any[]) => {
       });
     }
     
-    const order = orderMap.get(orderId);
+    const order = orderMap.get(orderId)!;
     // Use item_id if menu_item_name is not available
     const itemName = item.menu_item_name || `Item #${item.item_id}`;
     order.items.push(itemName);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -64,16 +64,23 @@ const StatusChip = styled(Chip)<{ status: string }>(({ theme, status }) => {
   };
 });
 
+interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
 interface Order {
   id: string;
   customer: string;
-  items: string[];
-  total: number;
+  date: string;
+  dateFormatted?: string;
   status: string;
-  date: Date;
-  dateFormatted: string;
-  storeId: number;
-  storeName: string;
+  store: string;
+  store_id: number;
+  total: number;
+  items: OrderItem[];
 }
 
 const ITEMS_PER_PAGE = 100;
@@ -100,91 +107,79 @@ const Transactions: React.FC = () => {
   );
 
   // Process transaction items into orders
-  const orders = React.useMemo(() => {
-    if (!apiResponse?.data || apiResponse.data.length === 0) {
-      console.log('No transaction items found');
-      return [];
+  useMemo(() => {
+    console.log('Processing transaction items:', apiResponse?.data?.length);
+    if (!apiResponse?.data) {
+      setFilteredOrders([]);
+      return;
     }
 
     const transactionItems = apiResponse.data;
-    console.log(`Processing ${transactionItems.length} transaction items`);
+    console.log(`Processing ${transactionItems.length} transaction items from API response`);
     
-    // Group transactions by check_number (order ID)
     const orderMap = new Map<string, Order>();
     
-    transactionItems.forEach((item: TransactionItem) => {
-      if (!item || !item.check_number) return; // Skip invalid items
+    transactionItems.forEach((item) => {
+      if (!item || !item.check_number) return;
       
-      const orderId = item.check_number.toString();
-      
-      // Format date - using business_date
+      const orderKey = `${item.store_id}-${item.check_number}`;
       const dateStr = item.business_date;
-      const date = new Date(dateStr);
       
-      if (!orderMap.has(orderId)) {
-        orderMap.set(orderId, {
-          id: orderId,
-          customer: `Guest ${orderId.slice(-4)}`,
-          items: [],
-          total: 0,
-          status: Number(item.record_type) === 0 ? 'Completed' : 'Void',
-          date: date,
+      if (!orderMap.has(orderKey)) {
+        orderMap.set(orderKey, {
+          id: orderKey,
+          customer: `Order #${item.check_number}`,
+          date: dateStr,
           dateFormatted: formatDateTimeForDisplay(dateStr),
-          storeId: item.store_id,
-          storeName: item.store_name || `Store ${item.store_id}`
+          status: item.record_type === 0 ? 'Completed' : 'Void',
+          store: item.store_name || `Store ${item.store_id}`,
+          store_id: item.store_id,
+          total: 0,
+          items: []
         });
       }
+
+      const order = orderMap.get(orderKey)!;
       
-      const order = orderMap.get(orderId)!;
-      
-      // Add all items, including those with zero price
-      const itemName = `Item #${item.item_id} (Cat: ${item.category_id})`;
-      // Check if this exact item (with same item_id) already exists in the order
-      const existingItemIndex = order.items.findIndex(i => i.startsWith(`Item #${item.item_id}`));
-      if (existingItemIndex === -1) {
-        // New item
-        order.items.push(itemName);
-        order.total += item.price * item.quantity;
-      } else {
-        // Item exists, update quantity in the name
-        const currentQuantity = (order.items[existingItemIndex].match(/x(\d+)/) || [null, '1'])[1];
-        const newQuantity = parseInt(currentQuantity) + item.quantity;
-        order.items[existingItemIndex] = `${itemName} x${newQuantity}`;
+      // Only add items with a price > 0 to avoid duplicates from modifiers
+      if (item.price > 0) {
+        order.items.push({
+          id: item.item_id.toString(),
+          name: `Item #${item.item_id} (Cat: ${item.category_id})`,
+          quantity: item.quantity,
+          price: item.price
+        });
         order.total += item.price * item.quantity;
       }
     });
     
-    const processedOrders = Array.from(orderMap.values())
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
+    console.log('Processed orders:', orderMap.size);
     
-    console.log('Processed orders:', processedOrders);
-    
-    return processedOrders;
-  }, [apiResponse]);
-  
-  // Apply filters
-  useEffect(() => {
-    let result = [...orders];
+    let processedOrders = Array.from(orderMap.values());
     
     // Apply search filter
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      result = result.filter(
+      processedOrders = processedOrders.filter(
         order => 
-          order.id.toLowerCase().includes(lowerSearchTerm) ||
           order.customer.toLowerCase().includes(lowerSearchTerm) ||
-          order.items.some(item => item.toLowerCase().includes(lowerSearchTerm))
+          order.store.toLowerCase().includes(lowerSearchTerm) ||
+          order.items.some(item => item.name.toLowerCase().includes(lowerSearchTerm))
       );
+      console.log('After search filter:', processedOrders.length);
     }
     
     // Apply status filter
     if (statusFilter !== 'all') {
-      result = result.filter(order => order.status.toLowerCase() === statusFilter.toLowerCase());
+      processedOrders = processedOrders.filter(order => order.status.toLowerCase() === statusFilter.toLowerCase());
+      console.log('After status filter:', processedOrders.length);
     }
     
-    setFilteredOrders(result);
-  }, [orders, searchTerm, statusFilter]);
-
+    // Update filtered orders and reset pagination
+    setFilteredOrders(processedOrders);
+    setPage(1);
+  }, [apiResponse, searchTerm, statusFilter]);
+  
   // Get current page items
   const currentPageOrders = React.useMemo(() => {
     const startIndex = (page - 1) * ITEMS_PER_PAGE;
@@ -209,10 +204,12 @@ const Transactions: React.FC = () => {
 
   const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setStartDate(event.target.value);
+    setPage(1); // Reset to first page when date changes
   };
   
   const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setEndDate(event.target.value);
+    setPage(1); // Reset to first page when date changes
   };
 
   // Update the view all handler
@@ -220,7 +217,19 @@ const Transactions: React.FC = () => {
     const { startDate: newStartDate, endDate: newEndDate } = getLast30DaysRange();
     setStartDate(newStartDate);
     setEndDate(newEndDate);
+    setPage(1); // Reset to first page when date range changes
   };
+
+  // Add debug logging for date filtering
+  useEffect(() => {
+    console.log('Date filter changed:', {
+      startDate,
+      endDate,
+      selectedStoreId,
+      totalRecords: apiResponse?.count,
+      recordsInView: apiResponse?.data?.length
+    });
+  }, [startDate, endDate, selectedStoreId, apiResponse]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -297,6 +306,7 @@ const Transactions: React.FC = () => {
                   value={endDate}
                   onChange={handleEndDateChange}
                   sx={{ width: '100%' }}
+                  minDate={startDate} // Prevent end date being before start date
                 />
                 <Button 
                   variant="outlined" 
@@ -425,14 +435,14 @@ const Transactions: React.FC = () => {
                           <Typography noWrap sx={{ maxWidth: 200 }}>
                             {order.items.length > 0 
                               ? (order.items.length > 3 
-                                ? `${order.items.slice(0, 3).join(', ')} +${order.items.length - 3} more` 
-                                : order.items.join(', '))
+                                ? `${order.items.slice(0, 3).map(item => item.name).join(', ')} +${order.items.length - 3} more` 
+                                : order.items.map(item => item.name).join(', '))
                               : 'No items'
                             }
                           </Typography>
                         </TableCell>
                         {selectedStoreId === null && (
-                          <TableCell>{order.storeName}</TableCell>
+                          <TableCell>{order.store}</TableCell>
                         )}
                         <TableCell>{order.dateFormatted}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>${order.total.toFixed(2)}</TableCell>
