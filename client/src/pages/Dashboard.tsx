@@ -26,7 +26,7 @@ const DashboardDataContext = React.createContext<{
   transactionItems: TransactionItem[] | null;
   itemSales: ItemSalesData[] | null;
   storeSales: SalesData[] | null;
-  fetchDashboardData?: (date: string) => void;
+  fetchDashboardData?: (startDate: string, endDate: string) => void;
 }>({
   salesSummary: null,
   menuStats: null,
@@ -71,8 +71,9 @@ const DashboardContent: React.FC = () => {
     return date;
   }, []);
 
-  // State for date picker
-  const [selectedDate, setSelectedDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
+  // State for date range picker
+  const [startDate, setStartDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
 
   // Get global store context
   const { selectedStore } = useStoreContext();
@@ -86,24 +87,26 @@ const DashboardContent: React.FC = () => {
 
   // Fetch data when selected date changes
   useEffect(() => {
-    console.log('Current selectedDate:', selectedDate);
+    console.log('Current date range:', startDate, 'to', endDate);
     if (fetchDashboardData) {
-      fetchDashboardData(selectedDate);
+      fetchDashboardData(startDate, endDate);
     }
-  }, [selectedDate, fetchDashboardData]);
+  }, [startDate, endDate, fetchDashboardData]);
   
   const theme = useTheme();
   
   // Format the date for display
-  const formattedDate = format(yesterday, 'EEEE, MMMM d, yyyy');
+  const formattedDateRange = startDate === endDate 
+    ? format(new Date(startDate), 'EEEE, MMMM d, yyyy')
+    : `${format(new Date(startDate), 'MMM d')} - ${format(new Date(endDate), 'MMM d, yyyy')}`;
   
-  // Log for debugging
-  useEffect(() => {
-    console.log('Dashboard rendering with date:', selectedDate);
-  }, [selectedDate]);
+  // Handlers for date changes
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(event.target.value);
+  };
   
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDate(event.target.value);
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(event.target.value);
   };
   
   return (
@@ -182,21 +185,34 @@ const DashboardContent: React.FC = () => {
               </Typography>
             </Breadcrumbs>
             
-            <TextField
-              label="Select Date"
-              type="date"
-              value={selectedDate}
-              onChange={handleDateChange}
-              sx={{ width: 200 }}
-              size="small"
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                label="Start Date"
+                type="date"
+                value={startDate}
+                onChange={handleStartDateChange}
+                sx={{ width: 160 }}
+                size="small"
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+              <TextField
+                label="End Date"
+                type="date"
+                value={endDate}
+                onChange={handleEndDateChange}
+                sx={{ width: 160 }}
+                size="small"
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Box>
           </Box>
           
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {formattedDate}
+            {formattedDateRange}
           </Typography>
         </Stack>
       </Paper>
@@ -290,47 +306,69 @@ const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return date;
   }, []);
 
-  // State for date picker - using the date directly in the API calls
-  const selectedDate = format(yesterday, 'yyyy-MM-dd');
+  console.log('Dashboard Provider initializing with yesterday:', format(yesterday, 'yyyy-MM-dd'));
+
+  // Date range state with defaults
+  const [startDate, setStartDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
   
   // Get store selection from the global context
   const { selectedStoreId } = useStoreContext();
   
+  console.log('Initial dashboard data fetch with params:', { 
+    startDate, 
+    endDate, 
+    selectedStoreId 
+  });
+  
   // Fetch all dashboard data in parallel at component mount
   const { data: salesSummaryData } = useApi(
-    () => dbApi.getSalesSummary(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getSalesSummary(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   const { data: menuStatsData } = useApi(
-    () => dbApi.getMenuStats(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getMenuStats(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   const { data: categorySalesData } = useApi(
-    () => dbApi.getCategorySales(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getCategorySales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   const { data: transactionItemsData } = useApi(
-    () => dbApi.getTransactionItems(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getTransactionItems(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   const { data: itemSalesData } = useApi(
-    () => dbApi.getItemSales(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getItemSales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   const { data: storeSalesData } = useApi(
-    () => dbApi.getStoreSales(selectedDate, selectedStoreId),
-    { deps: [selectedDate, selectedStoreId] }
+    () => dbApi.getStoreSales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
-  // Function to fetch dashboard data
-  const fetchDashboardData = useCallback((date: string) => {
-    console.log('Fetching dashboard data for date:', date);
-    // Data is already fetched via useApi hooks with date as dependency
+  // Log data for debugging
+  useEffect(() => {
+    console.log('Dashboard data loaded:', {
+      salesSummary: salesSummaryData ? 'Loaded' : 'Not loaded',
+      menuStats: menuStatsData ? `Menu items: ${menuStatsData.menuItemCount}` : 'Not loaded',
+      categorySales: categorySalesData?.length || 'None',
+      transactions: transactionItemsData?.length || 'None',
+      itemSales: itemSalesData?.length || 'None',
+      storeSales: storeSalesData?.length || 'None'
+    });
+  }, [salesSummaryData, menuStatsData, categorySalesData, transactionItemsData, itemSalesData, storeSalesData]);
+  
+  // Function to fetch dashboard data for date range
+  const fetchDashboardData = useCallback((start: string, end: string) => {
+    console.log('Fetching dashboard data for date range:', start, 'to', end);
+    setStartDate(start);
+    setEndDate(end);
   }, []);
   
   // Calculate filtered sales summary based on selected store

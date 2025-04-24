@@ -51,14 +51,29 @@ const StyledLinearProgress = styled(LinearProgress)(({ theme }) => ({
 
 // Process items to calculate popularity
 const processItems = (items: ItemSalesData[]) => {
-  if (!items || items.length === 0) return [];
+  if (!items || items.length === 0) {
+    console.log("No item sales data available");
+    return [];
+  }
 
+  console.log("Processing items:", items.length);
+  
   // Group by item name
-  const itemMap = new Map<string, any>();
+  const itemMap = new Map<string, {
+    id: string;
+    name: string;
+    category: string;
+    sales: number;
+    quantity: number;
+    price: number;
+    popularity: number;
+  }>();
   
   items.forEach(item => {
+    if (!item || !item.item_name) return;
+    
     const itemName = item.item_name;
-    const itemNumber = item.item_number.toString();
+    const itemNumber = item.item_number?.toString() || `item-${itemName.replace(/\s+/g, '-')}`;
     
     if (!itemMap.has(itemNumber)) {
       itemMap.set(itemNumber, {
@@ -72,7 +87,7 @@ const processItems = (items: ItemSalesData[]) => {
       });
     }
     
-    const menuItem = itemMap.get(itemNumber);
+    const menuItem = itemMap.get(itemNumber)!;
     menuItem.sales += item.sales_amount || 0;
     menuItem.quantity += item.quantity_sold || 0;
   });
@@ -80,16 +95,37 @@ const processItems = (items: ItemSalesData[]) => {
   // Convert to array and sort by quantity
   const processedItems = Array.from(itemMap.values());
   
+  if (processedItems.length === 0) {
+    console.log("No processed items after mapping");
+    return [];
+  }
+  
+  // Use a default price value for items with zero sales amount
+  const DEFAULT_PRICE = 3.99;
+  
   // Find max quantity to calculate popularity percentage
   const maxQuantity = Math.max(...processedItems.map(item => item.quantity));
   
   // Calculate popularity and format data
   processedItems.forEach(item => {
     item.popularity = maxQuantity > 0 ? Math.round((item.quantity / maxQuantity) * 100) : 0;
-    item.price = item.sales / item.quantity || 0;
+    
+    // Avoid division by zero and handle zero sales amount
+    if (item.quantity > 0) {
+      // If sales amount is 0 but we have quantity, use default price
+      if (item.sales === 0) {
+        item.price = DEFAULT_PRICE;
+      } else {
+        item.price = item.sales / item.quantity;
+      }
+    } else {
+      item.price = DEFAULT_PRICE;
+    }
   });
   
-  // Sort by popularity and take top 5
+  console.log("Processed items:", processedItems.map(i => `${i.name}: qty=${i.quantity}, price=${i.price}`));
+  
+  // Sort by popularity (quantity) and take top 5
   return processedItems
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 5);
@@ -103,6 +139,8 @@ const PopularItems: React.FC<PopularItemsProps> = ({
 }) => {
   const theme = useTheme();
   
+  console.log("PopularItems rendering with preloaded data:", preloadedData?.length || 'None');
+  
   // Fetch item sales data from API only if not provided via props
   const { data: fetchedItemSalesData, isLoading, error } = useApi(
     () => dbApi.getItemSales(),
@@ -112,9 +150,13 @@ const PopularItems: React.FC<PopularItemsProps> = ({
   // Use preloaded data if available, otherwise use fetched data
   const itemSalesData = preloadedData || fetchedItemSalesData;
   
+  console.log("ItemSalesData available:", itemSalesData?.length || 'None');
+  
   // Process items
   const items = React.useMemo(() => {
-    return processItems(itemSalesData || []);
+    const processed = processItems(itemSalesData || []);
+    console.log("Processed popular items:", processed.length);
+    return processed;
   }, [itemSalesData]);
 
   const getLinearProgressColor = (popularity: number) => {

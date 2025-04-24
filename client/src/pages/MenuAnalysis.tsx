@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -48,7 +48,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import useApi from '../hooks/useApi';
 import { dbApi } from '../services/api';
-import { format, subDays, parseISO } from 'date-fns';
+import { format, subDays, parseISO, isWithinInterval } from 'date-fns';
 import { useStoreContext } from '../contexts/StoreContext';
 import StoreSelector from '../components/common/StoreSelector';
 
@@ -130,20 +130,22 @@ const MenuAnalysis: React.FC = () => {
   const [sortBy, setSortBy] = useState('sales');
   const [activeTab, setActiveTab] = useState(0);
   const [filteredItems, setFilteredItems] = useState<ProcessedItemSale[]>([]);
-  const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const yesterday = useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), []);
+  const [startDate, setStartDate] = useState(yesterday);
+  const [endDate, setEndDate] = useState(yesterday);
   
   // Get store context for filtering
   const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
   
   // Fetch data
   const { data: itemSales, isLoading: isLoadingItems, error: itemsError } = useApi(
-    () => dbApi.getItemSales(dateFilter, selectedStoreId),
-    { deps: [dateFilter, selectedStoreId] }
+    () => dbApi.getItemSales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   const { data: categorySales, isLoading: isLoadingCategories, error: categoriesError } = useApi(
-    () => dbApi.getCategorySales(dateFilter, selectedStoreId),
-    { deps: [dateFilter, selectedStoreId] }
+    () => dbApi.getCategorySales(startDate, endDate, selectedStoreId),
+    { deps: [startDate, endDate, selectedStoreId] }
   );
   
   // Process and prepare data when raw data changes or filters change
@@ -183,16 +185,14 @@ const MenuAnalysis: React.FC = () => {
     // Apply filters
     let filtered = [...processed];
     
-    // Date filter
-    if (dateFilter) {
-      const filterDate = parseISO(dateFilter);
+    // Date filter for date range
+    if (startDate && endDate) {
+      const start = parseISO(startDate);
+      const end = parseISO(endDate);
+      
       filtered = filtered.filter(item => {
         const itemDate = parseISO(item.date);
-        return (
-          itemDate.getFullYear() === filterDate.getFullYear() &&
-          itemDate.getMonth() === filterDate.getMonth() &&
-          itemDate.getDate() === filterDate.getDate()
-        );
+        return isWithinInterval(itemDate, { start, end });
       });
     }
     
@@ -220,7 +220,7 @@ const MenuAnalysis: React.FC = () => {
     });
     
     setFilteredItems(filtered);
-  }, [itemSales, searchTerm, sortBy, dateFilter]);
+  }, [itemSales, searchTerm, sortBy, startDate, endDate]);
   
   // Handle filter changes
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,8 +235,12 @@ const MenuAnalysis: React.FC = () => {
     setActiveTab(newValue);
   };
   
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDateFilter(event.target.value);
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(event.target.value);
+  };
+  
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(event.target.value);
   };
   
   // Format data for charts
@@ -328,10 +332,18 @@ const MenuAnalysis: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             <TextField
-              label="Date"
+              label="Start Date"
               type="date"
-              value={dateFilter}
-              onChange={handleDateChange}
+              value={startDate}
+              onChange={handleStartDateChange}
+              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              label="End Date"
+              type="date"
+              value={endDate}
+              onChange={handleEndDateChange}
               sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
               InputLabelProps={{ shrink: true }}
             />
