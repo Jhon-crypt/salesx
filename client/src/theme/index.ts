@@ -15,8 +15,8 @@ declare module '@mui/material/styles' {
   }
 }
 
-// Custom color scheme for a restaurant dashboard
-let theme = createTheme({
+// Light theme configuration
+let lightTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
@@ -187,7 +187,61 @@ let theme = createTheme({
   },
 });
 
-// Apply responsive typography
-theme = responsiveFontSizes(theme);
+// Create dark theme based on the light theme
+let darkTheme = createTheme({
+  ...lightTheme,
+  palette: {
+    ...lightTheme.palette,
+    mode: 'dark',
+    primary: {
+      main: '#3b82f6', // Lighter blue for dark mode
+      light: '#60a5fa',
+      dark: '#2563eb',
+      contrastText: '#ffffff',
+    },
+    secondary: {
+      main: '#f59e0b', // Keep amber
+      light: '#fbbf24',
+      dark: '#d97706',
+      contrastText: '#000000',
+    },
+    background: {
+      default: '#111827', // Dark blue-gray
+      paper: '#1f2937',
+    },
+    text: {
+      primary: '#f9fafb',
+      secondary: '#e5e7eb',
+      disabled: '#6b7280',
+    },
+  },
+  components: {
+    ...lightTheme.components,
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2), 0px 3px 8px rgba(0, 0, 0, 0.3)',
+          backgroundColor: '#1f2937',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#1f2937',
+        },
+      },
+    },
+  },
+});
 
-export default theme; 
+// Apply responsive typography
+lightTheme = responsiveFontSizes(lightTheme);
+darkTheme = responsiveFontSizes(darkTheme);
+
+// Default export for backward compatibility
+export default lightTheme;
+
+// Named exports for theme selection
+export { lightTheme, darkTheme }; 

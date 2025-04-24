@@ -21,8 +21,6 @@ import {
   Pagination,
   InputAdornment,
   Chip,
-  IconButton,
-  Tooltip,
   Stack,
   Breadcrumbs,
   Link,
@@ -31,12 +29,13 @@ import {
 import { styled } from '@mui/material/styles';
 import { format } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
-import InfoIcon from '@mui/icons-material/Info';
 import CancelIcon from '@mui/icons-material/Cancel';
 import HomeIcon from '@mui/icons-material/Home';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import useApi from '../hooks/useApi';
-import { dbApi, VoidTransaction } from '../services/api';
+import { dbApi } from '../services/api';
+import { useStoreContext } from '../contexts/StoreContext';
+import StoreSelector from '../components/common/StoreSelector';
 
 interface VoidTransactionDisplay {
   id: string;
@@ -79,10 +78,13 @@ const VoidTransactions: React.FC = () => {
   const [page, setPage] = useState(1);
   const [filteredTransactions, setFilteredTransactions] = useState<VoidTransactionDisplay[]>([]);
   
+  // Get store context for filtering
+  const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
+  
   // Fetch transaction items from API
   const { data: voidTransactions, isLoading, error } = useApi(
-    () => dbApi.getVoidTransactions(),
-    {}
+    () => dbApi.getVoidTransactions(undefined, selectedStoreId),
+    { deps: [selectedStoreId] }
   );
   
   // Process void transactions into more display-friendly format
@@ -193,19 +195,31 @@ const VoidTransactions: React.FC = () => {
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
                 Monitor and analyze voided sales
+                {selectedStore && (
+                  <> for <b>{selectedStore.store_name}</b></>
+                )}
               </Typography>
             </Box>
-            <Card sx={{ p: 2, display: 'inline-flex', alignItems: 'center' }}>
-              <CancelIcon sx={{ color: 'error.main', mr: 1, fontSize: 30 }} />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Total Voided
-                </Typography>
-                <Typography variant="h6" fontWeight="bold">
-                  ${totalVoided.toFixed(2)}
-                </Typography>
-              </Box>
-            </Card>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <StoreSelector 
+                stores={stores}
+                selectedStoreId={selectedStoreId}
+                onChange={setSelectedStoreId}
+                size="small"
+                showCount={false}
+              />
+              <Card sx={{ p: 2, display: 'inline-flex', alignItems: 'center' }}>
+                <CancelIcon sx={{ color: 'error.main', mr: 1, fontSize: 30 }} />
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Total Voided
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold">
+                    ${totalVoided.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Card>
+            </Box>
           </Box>
           
           <Breadcrumbs aria-label="breadcrumb">

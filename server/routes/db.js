@@ -194,7 +194,7 @@ router.get('/simple-sales', async (req, res) => {
 // Get store sales data using actual KFC schema
 router.get('/store-sales', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -224,6 +224,12 @@ router.get('/store-sales', async (req, res) => {
       query += ` AND st.DateOfBusiness >= DATEADD(day, -30, GETDATE())`;
     }
     
+    if (store_id) {
+      // Filter by store if provided
+      query += ` AND st.FKStoreId = @store_id`;
+      request.input('store_id', sql.Int, parseInt(store_id, 10));
+    }
+    
     query += ` ORDER BY st.DateOfBusiness DESC`;
     
     const result = await request.query(query);
@@ -246,7 +252,7 @@ router.get('/store-sales', async (req, res) => {
 // Get item sales for menu analysis
 router.get('/item-sales', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -278,6 +284,12 @@ router.get('/item-sales', async (req, res) => {
       query += ` AND sales.DateOfBusiness >= DATEADD(day, -7, GETDATE())`;
     }
     
+    if (store_id) {
+      // Filter by store if provided
+      query += ` AND sales.FKStoreId = @store_id`;
+      request.input('store_id', sql.Int, parseInt(store_id, 10));
+    }
+    
     query += `
       GROUP BY
         i.LongName, i.ItemId, sales.DateOfBusiness, sales.FKStoreId, s.Name
@@ -305,11 +317,11 @@ router.get('/item-sales', async (req, res) => {
 // Get transaction details - optimized for performance
 router.get('/transaction-items', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     await pool.connect();
     
     let query = `
-      SELECT TOP 30
+      SELECT TOP 100
         FKItemId as item_id,
         CheckNumber as check_number,
         DateOfBusiness as business_date,
@@ -325,13 +337,19 @@ router.get('/transaction-items', async (req, res) => {
     
     const request = pool.request();
     
-    if (date) {
+    if (date && date.trim() !== '') {
       // If specific date is requested
       query += ` AND CONVERT(DATE, DateOfBusiness) = @date`;
       request.input('date', sql.Date, new Date(date));
     } else {
-      // Default to last 3 days if no date specified
-      query += ` AND DateOfBusiness >= DATEADD(day, -3, GETDATE())`;
+      // Default to last 30 days if no date specified (increased from 3 days)
+      query += ` AND DateOfBusiness >= DATEADD(day, -30, GETDATE())`;
+    }
+    
+    if (store_id) {
+      // Filter by store if provided
+      query += ` AND FKStoreId = @store_id`;
+      request.input('store_id', sql.Int, parseInt(store_id, 10));
     }
     
     query += `
@@ -359,7 +377,7 @@ router.get('/transaction-items', async (req, res) => {
 // Get void transactions based on GndVoid data dictionary
 router.get('/void-transactions', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -390,6 +408,12 @@ router.get('/void-transactions', async (req, res) => {
       query += ` AND DateOfBusiness >= DATEADD(day, -30, GETDATE())`;
     }
     
+    if (store_id) {
+      // Filter by store if provided
+      query += ` AND FKStoreId = @store_id`;
+      request.input('store_id', sql.Int, parseInt(store_id, 10));
+    }
+    
     query += `
       ORDER BY
         DateOfBusiness DESC, Hour DESC, Minute DESC
@@ -415,10 +439,10 @@ router.get('/void-transactions', async (req, res) => {
 // Get a summary of sales, active orders, and customer metrics
 router.get('/sales-summary', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     
     // Use static cache to avoid recalculating within short time periods
-    const CACHE_KEY = `sales_summary_cache_${date || 'default'}`;
+    const CACHE_KEY = `sales_summary_cache_${date || 'default'}_store_${store_id || 'all'}`;
     const CACHE_TTL = 60000; // 1 minute cache
     
     if (global[CACHE_KEY] && global[CACHE_KEY].timestamp > Date.now() - CACHE_TTL) {
@@ -450,26 +474,33 @@ router.get('/sales-summary', async (req, res) => {
     const request = pool.request()
       .input('targetDate', sql.Date, targetDateStr)
       .input('previousDate', sql.Date, previousDateStr);
+      
+    // Add store filter if provided
+    let storeFilter = '';
+    if (store_id) {
+      storeFilter = 'AND FKStoreId = @store_id';
+      request.input('store_id', sql.Int, parseInt(store_id, 10));
+    }
     
     const query = `
       SELECT
         (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate) AS t) AS targetSales,
+         WHERE DateOfBusiness = @targetDate ${storeFilter}) AS t) AS targetSales,
         
         (SELECT ISNULL(NetSales, 0) FROM (SELECT TOP 1 NetSales FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate) AS y) AS previousSales,
+         WHERE DateOfBusiness = @previousDate ${storeFilter}) AS y) AS previousSales,
         
         (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate) AS t) AS targetCheckCount,
+         WHERE DateOfBusiness = @targetDate ${storeFilter}) AS t) AS targetCheckCount,
         
         (SELECT ISNULL(NumberOfChecks, 0) FROM (SELECT TOP 1 NumberOfChecks FROM dbo.DpvHstSalesTotals WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate) AS y) AS previousCheckCount,
+         WHERE DateOfBusiness = @previousDate ${storeFilter}) AS y) AS previousCheckCount,
         
         (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
-         WHERE DateOfBusiness = @targetDate) AS a) AS activeOrders,
+         WHERE DateOfBusiness = @targetDate ${storeFilter}) AS a) AS activeOrders,
         
         (SELECT COUNT(DISTINCT CheckNumber) FROM (SELECT TOP 1000 CheckNumber FROM dbo.DpvHstGndItem WITH (NOLOCK) 
-         WHERE DateOfBusiness = @previousDate) AS p) AS previousDayOrders
+         WHERE DateOfBusiness = @previousDate ${storeFilter}) AS p) AS previousDayOrders
     `;
     
     const result = await request.query(query);
@@ -564,7 +595,7 @@ router.get('/menu-stats', async (req, res) => {
 // Get sales by category for revenue breakdown
 router.get('/category-sales', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, store_id } = req.query;
     await pool.connect();
     
     let query = `
@@ -587,6 +618,12 @@ router.get('/category-sales', async (req, res) => {
     } else {
       // Default to last 7 days if no date specified
       query += ` AND i.DateOfBusiness >= DATEADD(day, -7, GETDATE())`;
+    }
+    
+    if (store_id) {
+      // Filter by store if provided
+      query += ` AND i.FKStoreId = @store_id`;
+      request.input('store_id', sql.Int, parseInt(store_id, 10));
     }
     
     query += `

@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   TextField,
-  MenuItem,
   CircularProgress,
   Paper,
   Table,
@@ -16,7 +15,6 @@ import {
   TableRow,
   Button,
   InputAdornment,
-  Divider,
   Tabs,
   Tab,
   Stack,
@@ -25,7 +23,7 @@ import {
   useTheme
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { format, subDays, parse, isValid } from 'date-fns';
+import { format, subDays, isValid } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import DownloadIcon from '@mui/icons-material/Download';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -46,6 +44,8 @@ import {
 } from 'recharts';
 import useApi from '../hooks/useApi';
 import { dbApi, SalesData } from '../services/api';
+import { useStoreContext } from '../contexts/StoreContext';
+import StoreSelector from '../components/common/StoreSelector';
 
 // Define tabs for report views
 interface TabPanelProps {
@@ -108,15 +108,17 @@ const SalesReport: React.FC = () => {
   // State for filters and data display
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
-  const [storeFilter, setStoreFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [filteredData, setFilteredData] = useState<SalesData[]>([]);
   
+  // Get store context for filtering
+  const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
+  
   // Fetch sales data
   const { data: salesData, isLoading, error } = useApi(
-    () => dbApi.getStoreSales(startDate),
-    { deps: [startDate] }
+    () => dbApi.getStoreSales(startDate, selectedStoreId),
+    { deps: [startDate, selectedStoreId] }
   );
   
   // Process and prepare data when raw data changes or filters change
@@ -138,13 +140,6 @@ const SalesReport: React.FC = () => {
       }
     }
     
-    // Filter by store
-    if (storeFilter !== 'all') {
-      filtered = filtered.filter(item => 
-        item.store_id.toString() === storeFilter.toString()
-      );
-    }
-    
     // Filter by search term
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
@@ -159,7 +154,7 @@ const SalesReport: React.FC = () => {
     );
     
     setFilteredData(filtered);
-  }, [salesData, startDate, endDate, storeFilter, searchTerm]);
+  }, [salesData, startDate, endDate, searchTerm]);
   
   // Handle filter changes
   const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,10 +163,6 @@ const SalesReport: React.FC = () => {
   
   const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setEndDate(event.target.value);
-  };
-  
-  const handleStoreFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setStoreFilter(event.target.value);
   };
   
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,17 +224,11 @@ const SalesReport: React.FC = () => {
     store: item.store_name || `Store ${item.store_id}`
   }));
   
-  // Get unique stores for the filter
-  const uniqueStores = salesData 
-    ? Array.from(new Set(salesData.map(item => item.store_id)))
-        .map(storeId => {
-          const storeData = salesData.find(item => item.store_id === storeId);
-          return {
-            id: storeId,
-            name: storeData?.store_name || `Store ${storeId}`
-          };
-        })
-    : [];
+  // Adjust tooltip formatter to handle string type
+  const formatSalesValue = (value: number | string): string => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    return `$${numValue}`;
+  };
   
   // Simulate export functionality
   const handleExport = () => {
@@ -276,6 +261,9 @@ const SalesReport: React.FC = () => {
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
                 Analyze sales performance across time periods and stores
+                {selectedStore && (
+                  <> for <b>{selectedStore.store_name}</b></>
+                )}
               </Typography>
             </Box>
             <Button 
@@ -365,20 +353,15 @@ const SalesReport: React.FC = () => {
               sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
               InputLabelProps={{ shrink: true }}
             />
-            <TextField
-              select
-              label="Store"
-              value={storeFilter}
-              onChange={handleStoreFilterChange}
-              sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}
-            >
-              <MenuItem value="all">All Stores</MenuItem>
-              {uniqueStores.map((store) => (
-                <MenuItem key={store.id} value={store.id.toString()}>
-                  {store.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Box sx={{ width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}>
+              <StoreSelector
+                stores={stores}
+                selectedStoreId={selectedStoreId}
+                onChange={setSelectedStoreId}
+                size="small"
+                showCount={false}
+              />
+            </Box>
             <TextField
               placeholder="Search..."
               value={searchTerm}
@@ -436,10 +419,10 @@ const SalesReport: React.FC = () => {
                   <YAxis
                     stroke="#888888"
                     tick={{ fill: '#888888', fontSize: 12 }}
-                    tickFormatter={(value) => `$${value}`}
+                    tickFormatter={formatSalesValue}
                   />
                   <RechartsTooltip 
-                    formatter={(value: any) => [`$${value}`, 'Sales']}
+                    formatter={(value: any) => [`${formatSalesValue(value)}`, 'Sales']}
                   />
                   <Line
                     type="monotone"

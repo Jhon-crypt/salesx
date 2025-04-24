@@ -12,11 +12,11 @@ import StoreIcon from '@mui/icons-material/Store';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import GroupIcon from '@mui/icons-material/Group';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import StoreSelector from '../components/common/StoreSelector';
+import { useStoreContext } from '../contexts/StoreContext';
 
 // API hooks
 import useApi from '../hooks/useApi';
-import { dbApi, SalesSummary, MenuStats, CategorySales, TransactionItem, ItemSalesData, SalesData, StoreInfo } from '../services/api';
+import { dbApi, SalesSummary, MenuStats, CategorySales, TransactionItem, ItemSalesData, SalesData } from '../services/api';
 
 // Global data context to share data between components
 const DashboardDataContext = React.createContext<{
@@ -26,9 +26,6 @@ const DashboardDataContext = React.createContext<{
   transactionItems: TransactionItem[] | null;
   itemSales: ItemSalesData[] | null;
   storeSales: SalesData[] | null;
-  stores: StoreInfo[];
-  selectedStoreId: number | null;
-  setSelectedStoreId: (storeId: number | null) => void;
   fetchDashboardData?: (date: string) => void;
 }>({
   salesSummary: null,
@@ -37,23 +34,14 @@ const DashboardDataContext = React.createContext<{
   transactionItems: null,
   itemSales: null,
   storeSales: null,
-  stores: [],
-  selectedStoreId: null,
-  setSelectedStoreId: () => {}
 });
 
 // Enhanced components that use data from context rather than fetching themselves
 const DashboardSalesChart: React.FC<{ title: string; subtitle?: string }> = (props) => {
-  const { storeSales, selectedStoreId } = React.useContext(DashboardDataContext);
+  const { storeSales } = React.useContext(DashboardDataContext);
+  // Server-side filtering is now done via API
   
-  // Filter sales data by selected store if needed
-  const filteredSales = useMemo(() => {
-    if (!storeSales) return undefined;
-    if (selectedStoreId === null) return storeSales;
-    return storeSales.filter(sale => sale.store_id === selectedStoreId);
-  }, [storeSales, selectedStoreId]);
-  
-  return <SalesChart {...props} preloadedData={filteredSales || undefined} />;
+  return <SalesChart {...props} preloadedData={storeSales || undefined} />;
 };
 
 const DashboardRevenueBreakdown: React.FC<{ title: string; subtitle?: string }> = (props) => {
@@ -62,29 +50,17 @@ const DashboardRevenueBreakdown: React.FC<{ title: string; subtitle?: string }> 
 };
 
 const DashboardRecentOrders: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
-  const { transactionItems, selectedStoreId } = React.useContext(DashboardDataContext);
+  const { transactionItems } = React.useContext(DashboardDataContext);
+  // We no longer need to filter by selectedStoreId since it's handled in the API call now
   
-  // Filter transaction items by selected store if needed
-  const filteredItems = useMemo(() => {
-    if (!transactionItems) return undefined;
-    if (selectedStoreId === null) return transactionItems;
-    return transactionItems.filter(item => item.store_id === selectedStoreId);
-  }, [transactionItems, selectedStoreId]);
-  
-  return <RecentOrders {...props} preloadedData={filteredItems || undefined} />;
+  return <RecentOrders {...props} preloadedData={transactionItems || undefined} />;
 };
 
 const DashboardPopularItems: React.FC<{ title: string; subtitle?: string; onViewAll?: () => void }> = (props) => {
-  const { itemSales, selectedStoreId } = React.useContext(DashboardDataContext);
+  const { itemSales } = React.useContext(DashboardDataContext);
+  // Server-side filtering is now done via API
   
-  // Filter item sales by selected store if needed
-  const filteredItems = useMemo(() => {
-    if (!itemSales) return undefined;
-    if (selectedStoreId === null) return itemSales;
-    return itemSales.filter(item => item.store_id === selectedStoreId);
-  }, [itemSales, selectedStoreId]);
-  
-  return <PopularItems {...props} preloadedData={filteredItems || undefined} />;
+  return <PopularItems {...props} preloadedData={itemSales || undefined} />;
 };
 
 const DashboardContent: React.FC = () => {
@@ -98,13 +74,13 @@ const DashboardContent: React.FC = () => {
   // State for date picker
   const [selectedDate, setSelectedDate] = useState<string>(format(yesterday, 'yyyy-MM-dd'));
 
+  // Get global store context
+  const { selectedStore } = useStoreContext();
+
   // Get dashboard data from context
   const { 
     salesSummary,
     menuStats,
-    stores,
-    selectedStoreId,
-    setSelectedStoreId,
     fetchDashboardData
   } = useContext(DashboardDataContext);
 
@@ -156,8 +132,12 @@ const DashboardContent: React.FC = () => {
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
                 All your restaurant metrics in one place
+                {selectedStore && (
+                  <> for <b>{selectedStore.store_name}</b></>
+                )}
               </Typography>
             </Box>
+            
             {salesSummary?.salesTrend != null && (
               <Box sx={{ 
                 py: 0.5, 
@@ -186,7 +166,7 @@ const DashboardContent: React.FC = () => {
             )}
           </Box>
           
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Breadcrumbs aria-label="breadcrumb">
               <Link
                 underline="hover"
@@ -202,34 +182,21 @@ const DashboardContent: React.FC = () => {
               </Typography>
             </Breadcrumbs>
             
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <StoreSelector 
-                stores={stores}
-                selectedStoreId={selectedStoreId}
-                onChange={setSelectedStoreId}
-                size="small"
-                showCount={true}
-              />
-              
-              <TextField
-                label="Select Date"
-                type="date"
-                value={selectedDate}
-                onChange={handleDateChange}
-                sx={{ width: 200 }}
-                size="small"
-                InputLabelProps={{
-                  shrink: true,
-                }}
-              />
-            </Box>
+            <TextField
+              label="Select Date"
+              type="date"
+              value={selectedDate}
+              onChange={handleDateChange}
+              sx={{ width: 200 }}
+              size="small"
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
           </Box>
           
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {formattedDate}
-            {selectedStoreId !== null && stores.find(s => s.store_id === selectedStoreId) && (
-              <> • Viewing data for: <b>{stores.find(s => s.store_id === selectedStoreId)?.store_name}</b></>
-            )}
           </Typography>
         </Stack>
       </Paper>
@@ -326,44 +293,38 @@ const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // State for date picker - using the date directly in the API calls
   const selectedDate = format(yesterday, 'yyyy-MM-dd');
   
-  // Store selection state
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
-  
-  // Fetch store list
-  const { data: storesData = [] } = useApi(
-    () => dbApi.getStores(),
-    { deps: [] }
-  );
+  // Get store selection from the global context
+  const { selectedStoreId } = useStoreContext();
   
   // Fetch all dashboard data in parallel at component mount
   const { data: salesSummaryData } = useApi(
-    () => dbApi.getSalesSummary(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getSalesSummary(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: menuStatsData } = useApi(
-    () => dbApi.getMenuStats(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getMenuStats(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: categorySalesData } = useApi(
-    () => dbApi.getCategorySales(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getCategorySales(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: transactionItemsData } = useApi(
-    () => dbApi.getTransactionItems(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getTransactionItems(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: itemSalesData } = useApi(
-    () => dbApi.getItemSales(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getItemSales(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   const { data: storeSalesData } = useApi(
-    () => dbApi.getStoreSales(selectedDate),
-    { deps: [selectedDate] }
+    () => dbApi.getStoreSales(selectedDate, selectedStoreId),
+    { deps: [selectedDate, selectedStoreId] }
   );
   
   // Function to fetch dashboard data
@@ -400,9 +361,6 @@ const DashboardDataProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     transactionItems: transactionItemsData || null,
     itemSales: itemSalesData || null,
     storeSales: storeSalesData || null,
-    stores: storesData,
-    selectedStoreId,
-    setSelectedStoreId,
     fetchDashboardData
   };
   
