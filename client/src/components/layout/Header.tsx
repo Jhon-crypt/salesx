@@ -124,12 +124,6 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
     navigate('/login');
   };
 
-  const notifications = [
-    { id: 1, message: 'New order received #1234', time: '5 min ago' },
-    { id: 2, message: 'Daily sales report is ready', time: '1 hour ago' },
-    { id: 3, message: 'Inventory low alert: Chicken', time: '2 hours ago' },
-  ];
-
   return (
     <AppBar 
       position="fixed" 
@@ -222,7 +216,7 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
             }
           }}
         >
-          <Badge badgeContent={notifications.length} color="secondary">
+          <Badge color="secondary">
             <NotificationsIcon />
           </Badge>
         </IconButton>
@@ -347,14 +341,11 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
           </Typography>
         </Box>
         <Divider />
-        {notifications.map((notification) => (
-          <MenuItem key={notification.id} onClick={handleNotificationsClose}>
-            <Box sx={{ width: '100%' }}>
-              <Typography variant="body2">{notification.message}</Typography>
-              <Typography variant="caption" color="text.secondary">{notification.time}</Typography>
-            </Box>
-          </MenuItem>
-        ))}
+        <MenuItem onClick={handleNotificationsClose}>
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="body2">No notifications available</Typography>
+          </Box>
+        </MenuItem>
         <Divider />
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }}>
           <Typography 
