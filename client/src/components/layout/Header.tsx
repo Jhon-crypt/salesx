@@ -4,7 +4,6 @@ import {
   Toolbar, 
   IconButton, 
   Typography, 
-  Badge, 
   Avatar, 
   Box, 
   Menu, 
@@ -17,7 +16,6 @@ import {
   Button
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -100,7 +98,6 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
   const { logout } = useAuth();
   const { stores, selectedStoreId, setSelectedStoreId, selectedStore } = useStoreContext();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [notificationsAnchorEl, setNotificationsAnchorEl] = useState<null | HTMLElement>(null);
   
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -108,14 +105,6 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
 
   const handleProfileMenuClose = () => {
     setAnchorEl(null);
-  };
-
-  const handleNotificationsOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotificationsAnchorEl(event.currentTarget);
-  };
-
-  const handleNotificationsClose = () => {
-    setNotificationsAnchorEl(null);
   };
 
   const handleLogout = () => {
@@ -204,23 +193,6 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
           </Tooltip>
         </Box>
         
-        {/* Notifications */}
-        <IconButton 
-          color="inherit" 
-          onClick={handleNotificationsOpen}
-          sx={{ 
-            marginRight: 1,
-            backgroundColor: notificationsAnchorEl ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-            '&:hover': {
-              backgroundColor: alpha(theme.palette.primary.main, 0.1),
-            }
-          }}
-        >
-          <Badge color="secondary">
-            <NotificationsIcon />
-          </Badge>
-        </IconButton>
-        
         {/* Avatar/Profile */}
         <IconButton 
           edge="end" 
@@ -297,66 +269,6 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
           </ListItemIcon>
           <ListItemText>Logout</ListItemText>
         </MenuItem>
-      </Menu>
-      
-      {/* Notifications Menu */}
-      <Menu
-        anchorEl={notificationsAnchorEl}
-        open={Boolean(notificationsAnchorEl)}
-        onClose={handleNotificationsClose}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        PaperProps={{
-          elevation: 2,
-          sx: {
-            overflow: 'visible',
-            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
-            mt: 1.5,
-            width: 320,
-            borderRadius: '12px',
-            '&:before': {
-              content: '""',
-              display: 'block',
-              position: 'absolute',
-              top: 0,
-              right: 14,
-              width: 10,
-              height: 10,
-              bgcolor: 'background.paper',
-              transform: 'translateY(-50%) rotate(45deg)',
-              zIndex: 0,
-            },
-          },
-        }}
-      >
-        <Box sx={{ px: 2, py: 1.5, display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="subtitle1" fontWeight="bold">Notifications</Typography>
-          <Typography 
-            variant="body2" 
-            color="primary" 
-            sx={{ cursor: 'pointer', fontWeight: 'medium' }}
-            onClick={handleNotificationsClose}
-          >
-            Mark all as read
-          </Typography>
-        </Box>
-        <Divider />
-        <MenuItem onClick={handleNotificationsClose}>
-          <Box sx={{ width: '100%' }}>
-            <Typography variant="body2">No notifications available</Typography>
-          </Box>
-        </MenuItem>
-        <Divider />
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }}>
-          <Typography 
-            variant="body2" 
-            color="primary" 
-            sx={{ cursor: 'pointer', fontWeight: 'medium' }}
-            onClick={handleNotificationsClose}
-          >
-            View all notifications
-          </Typography>
-        </Box>
       </Menu>
     </AppBar>
   );
