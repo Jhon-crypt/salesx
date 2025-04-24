@@ -18,8 +18,6 @@ import {
   Tabs,
   Tab,
   Button,
-  IconButton,
-  Tooltip,
   Chip,
   Stack,
   Breadcrumbs,
@@ -41,7 +39,6 @@ import {
   Cell
 } from 'recharts';
 import SearchIcon from '@mui/icons-material/Search';
-import FilterListIcon from '@mui/icons-material/FilterList';
 import StarIcon from '@mui/icons-material/Star';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -50,8 +47,10 @@ import HomeIcon from '@mui/icons-material/Home';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import useApi from '../hooks/useApi';
-import { dbApi, ItemSalesData, CategorySales } from '../services/api';
+import { dbApi } from '../services/api';
 import { format, subDays, parseISO } from 'date-fns';
+import { useStoreContext } from '../contexts/StoreContext';
+import StoreSelector from '../components/common/StoreSelector';
 
 // Define tabs for report views
 interface TabPanelProps {
@@ -129,20 +128,22 @@ const MenuAnalysis: React.FC = () => {
   // State for filters and data display
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('sales');
-  const [storeFilter, setStoreFilter] = useState('all');
   const [activeTab, setActiveTab] = useState(0);
   const [filteredItems, setFilteredItems] = useState<ProcessedItemSale[]>([]);
   const [dateFilter, setDateFilter] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   
+  // Get store context for filtering
+  const { stores, selectedStoreId, selectedStore, setSelectedStoreId } = useStoreContext();
+  
   // Fetch data
   const { data: itemSales, isLoading: isLoadingItems, error: itemsError } = useApi(
-    () => dbApi.getItemSales(dateFilter),
-    { deps: [dateFilter] }
+    () => dbApi.getItemSales(dateFilter, selectedStoreId),
+    { deps: [dateFilter, selectedStoreId] }
   );
   
   const { data: categorySales, isLoading: isLoadingCategories, error: categoriesError } = useApi(
-    () => dbApi.getCategorySales(dateFilter),
-    { deps: [dateFilter] }
+    () => dbApi.getCategorySales(dateFilter, selectedStoreId),
+    { deps: [dateFilter, selectedStoreId] }
   );
   
   // Process and prepare data when raw data changes or filters change
@@ -205,13 +206,6 @@ const MenuAnalysis: React.FC = () => {
       );
     }
     
-    // Store filter
-    if (storeFilter !== 'all') {
-      filtered = filtered.filter(
-        item => item.store.toLowerCase() === storeFilter.toLowerCase()
-      );
-    }
-    
     // Sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -226,7 +220,7 @@ const MenuAnalysis: React.FC = () => {
     });
     
     setFilteredItems(filtered);
-  }, [itemSales, searchTerm, sortBy, storeFilter, dateFilter]);
+  }, [itemSales, searchTerm, sortBy, dateFilter]);
   
   // Handle filter changes
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,10 +231,6 @@ const MenuAnalysis: React.FC = () => {
     setSortBy(event.target.value);
   };
   
-  const handleStoreFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setStoreFilter(event.target.value);
-  };
-  
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
@@ -248,11 +238,6 @@ const MenuAnalysis: React.FC = () => {
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setDateFilter(event.target.value);
   };
-  
-  // Get unique stores for filter options
-  const uniqueStores = itemSales 
-    ? Array.from(new Set(itemSales.map(item => item.store_name || `Store ${item.store_id}`)))
-    : [];
   
   // Format data for charts
   const topItems = filteredItems.slice(0, 10).map(item => ({
@@ -296,6 +281,9 @@ const MenuAnalysis: React.FC = () => {
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
                 Track performance of menu items across stores
+                {selectedStore && (
+                  <> for <b>{selectedStore.store_name}</b></>
+                )}
               </Typography>
             </Box>
             <Button 
@@ -371,20 +359,15 @@ const MenuAnalysis: React.FC = () => {
               <MenuItem value="quantity">Quantity Sold</MenuItem>
               <MenuItem value="name">Item Name</MenuItem>
             </TextField>
-            <TextField
-              select
-              label="Store"
-              value={storeFilter}
-              onChange={handleStoreFilterChange}
-              sx={{ flex: 1, minWidth: 150 }}
-            >
-              <MenuItem value="all">All Stores</MenuItem>
-              {uniqueStores.map((store) => (
-                <MenuItem key={store} value={store.toLowerCase()}>
-                  {store}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Box sx={{ flex: 1, minWidth: 150 }}>
+              <StoreSelector
+                stores={stores}
+                selectedStoreId={selectedStoreId}
+                onChange={setSelectedStoreId}
+                size="small"
+                showCount={false}
+              />
+            </Box>
           </Box>
         </CardContent>
       </Card>

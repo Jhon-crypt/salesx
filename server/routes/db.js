@@ -564,26 +564,56 @@ router.get('/sales-summary', async (req, res) => {
 // Get menu items statistics
 router.get('/menu-stats', async (req, res) => {
   try {
-    // Menu stats are relatively static, so we don't need date filtering here
+    const { date, store_id } = req.query;
     await pool.connect();
     
-    // Optimized to use cached query plan and minimal data
-    const menuItemsResult = await pool.request()
-      .query(`
+    let query = `
+      SELECT 
+        COUNT(DISTINCT i.ItemId) as total_items,
+        MAX(sales.quantity_sold) as max_item_quantity,
+        AVG(sales.quantity_sold) as avg_item_quantity,
+        SUM(sales.total_revenue) as total_revenue
+      FROM (
         SELECT 
-          COUNT(DISTINCT ItemId) as item_count
+          FKItemId as item_id,
+          COUNT(*) as quantity_sold,
+          SUM(Price) as total_revenue
         FROM 
-          dbo.Item WITH (NOLOCK)
-      `);
-
-    res.json({
-      success: true,
-      data: {
-        menuItemCount: menuItemsResult.recordset[0].item_count || 0
-      }
+          dbo.DpvHstGndItem WITH (NOLOCK)
+        WHERE 1=1
+    `;
+    
+    const request = pool.request();
+    
+    if (date && date.trim() !== '') {
+      // If specific date is requested
+      query += ` AND CONVERT(DATE, DateOfBusiness) = @date`;
+      request.input('date', sql.Date, new Date(date));
+    } else {
+      // Default to last 7 days if no date specified
+      query += ` AND DateOfBusiness >= DATEADD(day, -7, GETDATE())`;
+    }
+    
+    if (store_id) {
+      // Filter by store if provided
+      query += ` AND FKStoreId = @store_id`;
+      request.input('store_id', sql.Int, parseInt(store_id, 10));
+    }
+    
+    query += `
+        GROUP BY FKItemId
+      ) as sales
+      JOIN dbo.Item i WITH (NOLOCK) ON sales.item_id = i.ItemId
+    `;
+    
+    const result = await request.query(query);
+    
+    res.json({ 
+      success: true, 
+      data: result.recordset[0]
     });
   } catch (err) {
-    console.error('Menu stats query error:', err);
+    console.error('Menu statistics query error:', err);
     res.status(500).json({
       success: false,
       message: 'Error retrieving menu statistics',
