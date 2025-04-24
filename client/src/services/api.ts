@@ -132,6 +132,15 @@ export interface CategorySales {
   percentage: number;
 }
 
+export interface HourlySalesData {
+  hour: number;
+  hour_label: string;
+  item_name: string;
+  item_number: number;
+  quantity_sold: number;
+  sales_amount: number;
+}
+
 export interface StoreInfo {
   store_id: number;
   store_name: string;
@@ -271,6 +280,19 @@ export const dbApi = {
     if (store_id !== null && store_id !== undefined) params.store_id = store_id;
     
     const response = await api.get<{success: boolean, data: CategorySales[]}>('/db/category-sales', { params });
+    return response.data.data;
+  },
+  
+  // Get hourly sales data for menu items
+  getHourlyItemSales: async (date: string, store_id?: number | null, item_id?: number | null) => {
+    const params: Record<string, string | number> = {
+      date // date is required
+    };
+    
+    if (store_id !== null && store_id !== undefined) params.store_id = store_id;
+    if (item_id !== null && item_id !== undefined) params.item_id = item_id;
+    
+    const response = await api.get<{success: boolean, data: HourlySalesData[]}>('/db/hourly-item-sales', { params });
     return response.data.data;
   },
 };

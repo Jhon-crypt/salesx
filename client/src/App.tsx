@@ -10,6 +10,7 @@ import Transactions from './pages/Transactions';
 import VoidTransactions from './pages/VoidTransactions';
 import SalesReport from './pages/SalesReport';
 import MenuAnalysis from './pages/MenuAnalysis';
+import HourlyItemSales from './pages/HourlyItemSales';
 import Stores from './pages/Stores';
 import { isAuthenticated, logoutUser, getUserData } from './utils/authUtils';
 import { StoreProvider } from './contexts/StoreContext';
@@ -113,7 +114,7 @@ function App() {
                 } 
               />
               <Route 
-                path="/sales/transactions" 
+                path="/transactions" 
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -123,7 +124,7 @@ function App() {
                 } 
               />
               <Route 
-                path="/sales/void-transactions" 
+                path="/void-transactions" 
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -133,11 +134,31 @@ function App() {
                 } 
               />
               <Route 
-                path="/sales/report" 
+                path="/sales-report" 
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <SalesReport />
+                    </Layout>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/menu-analysis" 
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <MenuAnalysis />
+                    </Layout>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/hourly-sales" 
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <HourlyItemSales />
                     </Layout>
                   </ProtectedRoute>
                 } 
@@ -158,16 +179,6 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <div>Sales pages coming soon</div>
-                    </Layout>
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/menu/analysis" 
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <MenuAnalysis />
                     </Layout>
                   </ProtectedRoute>
                 } 

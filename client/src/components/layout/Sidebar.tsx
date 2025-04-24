@@ -29,6 +29,7 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import CancelIcon from '@mui/icons-material/Cancel';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 const DRAWER_WIDTH = 260;
 
@@ -109,6 +110,11 @@ const navItems: NavItem[] = [
         title: 'Menu Analysis',
         path: '/menu/analysis',
         icon: <BarChartIcon />,
+      },
+      {
+        title: 'Hourly Sales',
+        icon: <AccessTimeIcon fontSize="small" />,
+        path: '/hourly-sales',
       },
     ],
   },
